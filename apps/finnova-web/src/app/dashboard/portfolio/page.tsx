@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function portfolioPage() {
+export default function PortfolioPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

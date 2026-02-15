@@ -82,7 +82,7 @@ export default function MultipleAccountsPasswordResetPage() {
               </h1>
               <p className="text-gray-600">
                 Multiple accounts are registered with your information.
-                Please select which account's password you want to reset.
+                Please select which account&apos;s password you want to reset.
               </p>
             </div>
 

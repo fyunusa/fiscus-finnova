@@ -109,7 +109,7 @@ export default function OneWonVerificationPage() {
                   </li>
                   <li className="flex">
                     <span className="font-semibold mr-3">3)</span>
-                    <span>예: "FINNOVA123" → 코드는 "123"</span>
+                    <span>예: &quot;FINNOVA123&quot; → 코드는 &quot;123&quot;</span>
                   </li>
                 </ol>
               </div>

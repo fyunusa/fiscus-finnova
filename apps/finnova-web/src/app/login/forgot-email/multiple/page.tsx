@@ -195,7 +195,7 @@ export default function MultipleEmailsFoundPage() {
             {/* Help */}
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600 mb-2">
-                Don't recognize these accounts?
+                Don&apos;t recognize these accounts?
               </p>
               <Link
                 href="/support/inquiry"
