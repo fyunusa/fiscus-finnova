@@ -109,7 +109,7 @@ export default function SecurityPage() {
                 placeholder="현재 PIN (4자리)"
                 value={pinForm.current}
                 onChange={(e) => setPinForm({...pinForm, current: e.target.value})}
-                maxLength="4"
+                maxLength={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 text-center text-2xl tracking-widest"
               />
 
@@ -118,7 +118,7 @@ export default function SecurityPage() {
                 placeholder="새 PIN (4자리)"
                 value={pinForm.new}
                 onChange={(e) => setPinForm({...pinForm, new: e.target.value})}
-                maxLength="4"
+                maxLength={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 text-center text-2xl tracking-widest"
               />
 
@@ -127,7 +127,7 @@ export default function SecurityPage() {
                 placeholder="새 PIN 확인 (4자리)"
                 value={pinForm.confirm}
                 onChange={(e) => setPinForm({...pinForm, confirm: e.target.value})}
-                maxLength="4"
+                maxLength={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 text-center text-2xl tracking-widest"
               />
 

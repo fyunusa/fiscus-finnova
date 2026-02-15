@@ -217,7 +217,7 @@ export default function LoanDetailPage({ params }: { params: { id: string } }) {
         {/* Repayment Schedule Tab */}
         {activeTab === 'schedule' && (
           <Card className="overflow-hidden">
-            <Table className="w-full">
+            <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">회차</th>
@@ -244,14 +244,14 @@ export default function LoanDetailPage({ params }: { params: { id: string } }) {
                   </tr>
                 ))}
               </tbody>
-            </Table>
+            </table>
           </Card>
         )}
 
         {/* Payment History Tab */}
         {activeTab === 'history' && (
           <Card className="overflow-hidden">
-            <Table className="w-full">
+            <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">상환일</th>
@@ -276,7 +276,7 @@ export default function LoanDetailPage({ params }: { params: { id: string } }) {
                   </tr>
                 ))}
               </tbody>
-            </Table>
+            </table>
           </Card>
         )}
 

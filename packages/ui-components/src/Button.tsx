@@ -1,9 +1,10 @@
 import React from 'react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
+  loading?: boolean;
   fullWidth?: boolean;
 }
 
@@ -13,6 +14,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variant = 'primary',
       size = 'md',
       isLoading = false,
+      loading = false,
       fullWidth = false,
       className = '',
       children,
@@ -20,6 +22,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref
   ) => {
+    const isLoadingState = isLoading || loading;
     const baseClasses = 'font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
     
     const variantClasses = {
@@ -27,6 +30,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500',
       danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
       ghost: 'bg-transparent text-blue-600 hover:bg-blue-50 focus:ring-blue-500',
+      outline: 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50 focus:ring-gray-500',
     };
 
     const sizeClasses = {
@@ -36,16 +40,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const widthClass = fullWidth ? 'w-full' : '';
-    const disabledClass = isLoading ? 'opacity-70 cursor-not-allowed' : '';
+    const disabledClass = isLoadingState ? 'opacity-70 cursor-not-allowed' : '';
 
     return (
       <button
         ref={ref}
         className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${widthClass} ${disabledClass} ${className}`}
-        disabled={isLoading || props.disabled}
+        disabled={isLoadingState || props.disabled}
         {...props}
       >
-        {isLoading ? (
+        {isLoadingState ? (
           <span className="flex items-center gap-2">
             <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

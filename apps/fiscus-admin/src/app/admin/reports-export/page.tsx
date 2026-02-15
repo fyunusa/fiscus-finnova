@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function reports-exportPage() {
+export default function ReportsExportPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -151,7 +151,7 @@ export default function reports-exportPage() {
                 </div>
               ) : filteredData.length > 0 ? (
                 <div className="overflow-x-auto">
-                  <Table className="min-w-full divide-y divide-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -212,7 +212,7 @@ export default function reports-exportPage() {
                         </tr>
                       ))}
                     </tbody>
-                  </Table>
+                  </table>
                 </div>
               ) : (
                 <div className="text-center py-12">

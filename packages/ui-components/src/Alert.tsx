@@ -1,13 +1,16 @@
 import React from 'react';
 
-interface AlertProps {
-  type: 'success' | 'error' | 'warning' | 'info';
+interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
+  type?: 'success' | 'error' | 'warning' | 'info';
+  variant?: 'success' | 'error' | 'warning' | 'info';
   title?: string;
-  message: string;
+  message?: string;
   onClose?: () => void;
+  children?: React.ReactNode;
 }
 
-const Alert: React.FC<AlertProps> = ({ type, title, message, onClose }) => {
+const Alert: React.FC<AlertProps> = ({ type, variant, title, message, onClose, children, className = '', ...props }) => {
+  const alertType = type || variant || 'info';
   const typeClasses = {
     success: 'bg-green-50 border-green-200 text-green-800',
     error: 'bg-red-50 border-red-200 text-red-800',
@@ -23,22 +26,26 @@ const Alert: React.FC<AlertProps> = ({ type, title, message, onClose }) => {
   };
 
   return (
-    <div className={`border ${typeClasses[type]} rounded-lg p-4 flex gap-3`}>
+    <div className={`border ${typeClasses[alertType]} rounded-lg p-4 flex gap-3 ${className}`} {...props}>
       <div className="flex-shrink-0">
-        {type === 'success' && (
-          <svg className={`w-5 h-5 ${iconColors[type]}`} fill="currentColor" viewBox="0 0 20 20">
+        {alertType === 'success' && (
+          <svg className={`w-5 h-5 ${iconColors[alertType]}`} fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
           </svg>
         )}
-        {type === 'error' && (
-          <svg className={`w-5 h-5 ${iconColors[type]}`} fill="currentColor" viewBox="0 0 20 20">
+        {alertType === 'error' && (
+          <svg className={`w-5 h-5 ${iconColors[alertType]}`} fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" />
           </svg>
         )}
       </div>
       <div className="flex-1">
-        {title && <h4 className="font-medium mb-1">{title}</h4>}
-        <p className="text-sm">{message}</p>
+        {children || (
+          <>
+            {title && <h4 className="font-medium mb-1">{title}</h4>}
+            {message && <p className="text-sm">{message}</p>}
+          </>
+        )}
       </div>
       {onClose && (
         <button

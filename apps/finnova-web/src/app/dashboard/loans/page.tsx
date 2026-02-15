@@ -285,7 +285,7 @@ export default function LoanDashboardPage() {
 
         {/* Loans Table */}
         <Card className="overflow-hidden">
-          <Table className="w-full">
+          <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">담보 자산</th>
@@ -328,7 +328,7 @@ export default function LoanDashboardPage() {
                 </tr>
               ))}
             </tbody>
-          </Table>
+          </table>
         </Card>
 
         {filteredLoans.length === 0 && (
