@@ -1,5 +1,5 @@
 [build]
-  command = "cd ../../ && npm run build -- --filter fiscus-admin"
+  command = "npm run build -- --filter fiscus-admin"
   publish = "apps/fiscus-admin/.next"
 
 [build.environment]
