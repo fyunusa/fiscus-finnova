@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Layout from '@/components/Layout';
 
 export default function AdminHome() {
   const dashboardCards = [
@@ -31,59 +32,9 @@ export default function AdminHome() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <h1 className="text-2xl font-bold text-blue-600">FISCUS ADMIN</h1>
-            <div className="flex items-center gap-4">
-              <button className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
-                프로필
-              </button>
-              <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                로그아웃
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Sidebar + Main */}
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 bg-gray-900 text-white p-6 min-h-screen">
-          <nav className="space-y-2">
-            <Link href="/admin" className="block px-4 py-2 bg-blue-600 rounded-lg font-semibold">
-              대시보드
-            </Link>
-            <Link href="/admin/members" className="block px-4 py-2 text-gray-300 hover:bg-gray-800 rounded-lg">
-              회원 관리
-            </Link>
-            <Link href="/admin/products" className="block px-4 py-2 text-gray-300 hover:bg-gray-800 rounded-lg">
-              상품 관리
-            </Link>
-            <Link href="/admin/investments" className="block px-4 py-2 text-gray-300 hover:bg-gray-800 rounded-lg">
-              투자 관리
-            </Link>
-            <Link href="/admin/loans" className="block px-4 py-2 text-gray-300 hover:bg-gray-800 rounded-lg">
-              대출 관리
-            </Link>
-            <Link href="/admin/repayments" className="block px-4 py-2 text-gray-300 hover:bg-gray-800 rounded-lg">
-              상환 관리
-            </Link>
-            <Link href="/admin/reports" className="block px-4 py-2 text-gray-300 hover:bg-gray-800 rounded-lg">
-              보고서
-            </Link>
-            <Link href="/admin/settings" className="block px-4 py-2 text-gray-300 hover:bg-gray-800 rounded-lg">
-              설정
-            </Link>
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">대시보드</h1>
+    <Layout>
+      <div className="p-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">대시보드</h1>
 
           {/* Dashboard Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -150,8 +101,7 @@ export default function AdminHome() {
               </table>
             </div>
           </div>
-        </main>
       </div>
-    </div>
+    </Layout>
   );
 }
