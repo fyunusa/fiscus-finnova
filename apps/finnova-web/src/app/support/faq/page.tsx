@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function 자주묻는질문Page() {
+export default function FAQPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

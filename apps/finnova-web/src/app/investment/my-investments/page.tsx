@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function 나의투자Page() {
+export default function MyInvestmentsPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

@@ -5,7 +5,7 @@ import Layout from '@/components/Layout';
 import { Card, Button, Input } from '@/components/ui';
 import { Edit2, Check, X } from 'lucide-react';
 
-export default function profilePage() {
+export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [profile, setProfile] = useState({
     name: '김철수',

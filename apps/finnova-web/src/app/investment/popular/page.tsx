@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function 인기상품Page() {
+export default function PopularPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

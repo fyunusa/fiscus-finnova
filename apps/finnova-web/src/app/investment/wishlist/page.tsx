@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function wishlistPage() {
+export default function InvestmentWishlistPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

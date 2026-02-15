@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function 보고서Page() {
+export default function ReportsPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

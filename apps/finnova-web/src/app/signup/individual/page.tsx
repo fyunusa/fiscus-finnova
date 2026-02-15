@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function individualPage() {
+export default function IndividualPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

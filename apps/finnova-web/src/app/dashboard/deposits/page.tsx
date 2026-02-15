@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function 입금관리Page() {
+export default function DepositsPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

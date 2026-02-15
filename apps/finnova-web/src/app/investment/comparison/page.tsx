@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function comparisonPage() {
+export default function ComparisonPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

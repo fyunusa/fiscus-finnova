@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function apartmentPage() {
+export default function ApartmentPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');

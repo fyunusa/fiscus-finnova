@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function preferencesPage() {
+export default function PreferencesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
 

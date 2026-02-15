@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function KYC상태Page() {
+export default function KYCStatusPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
 

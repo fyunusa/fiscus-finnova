@@ -13,7 +13,7 @@ interface DataItem {
   createdAt?: string;
 }
 
-export default function onboardingPage() {
+export default function OnboardingPage() {
   const [data, setData] = useState<DataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
