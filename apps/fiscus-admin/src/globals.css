@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Admin-specific base styles */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  }
+
+  body {
+    @apply text-admin-900 bg-admin-50 antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  * {
+    @apply border-admin-200;
+  }
+}
+
+/* Admin component styles */
+@layer components {
+  .admin-sidebar {
+    @apply bg-admin-900 text-white;
+  }
+
+  .admin-header {
+    @apply bg-white border-b border-admin-200;
+  }
+
+  .admin-card {
+    @apply bg-white rounded-lg shadow-soft border border-admin-200;
+  }
+
+  .admin-btn {
+    @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md transition-colors;
+  }
+
+  .admin-btn-primary {
+    @apply bg-admin-600 hover:bg-admin-700 text-white;
+  }
+
+  .admin-input {
+    @apply block w-full px-3 py-2 border border-admin-300 rounded-md shadow-sm focus:outline-none focus:ring-admin-500 focus:border-admin-500;
+  }
+
+  .admin-table {
+    @apply min-w-full divide-y divide-admin-200;
+  }
+
+  .admin-table th {
+    @apply px-6 py-3 text-left text-xs font-medium text-admin-500 uppercase tracking-wider bg-admin-50;
+  }
+
+  .admin-table td {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-admin-900;
+  }
+}
+
+/* Dark theme for admin */
+@layer utilities {
+  .dark-mode {
+    @apply bg-admin-900 text-admin-100;
+  }
+
+  .admin-gradient {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  }
+}
+
+/* Custom scrollbar for admin */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-admin-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-admin-400 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-admin-500;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
