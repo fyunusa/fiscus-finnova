@@ -1,0 +1,6 @@
+[build]
+  command = "cd ../../ && npm run build -- --filter fiscus-admin"
+  publish = "apps/fiscus-admin/.next"
+
+[build.environment]
+  NEXT_PUBLIC_SITE_NAME = "fiscus-admin"
