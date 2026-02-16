@@ -18,6 +18,12 @@ export default function LoginPage() {
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
 
+  // Demo user credentials
+  const DEMO_USER = {
+    email: 'demo@finnova.kr',
+    password: 'demo1234',
+  };
+
   // Check lockout status on mount
   useEffect(() => {
     const storedAttempts = localStorage.getItem('loginAttempts');
@@ -89,8 +95,11 @@ export default function LoginPage() {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
 
+      // Check if it's the demo user
+      const isDemoUser = email === DEMO_USER.email && password === DEMO_USER.password;
+
       // Mock authentication - replace with real API response
-      const isAuthenticated = true; // Replace with actual API response
+      const isAuthenticated = isDemoUser; // Replace with actual API response
 
       if (isAuthenticated) {
         // Reset attempts on successful login
@@ -140,6 +149,12 @@ export default function LoginPage() {
     }
   }, []);
 
+  const handleDemoLogin = () => {
+    setEmail(DEMO_USER.email);
+    setPassword(DEMO_USER.password);
+    setError('');
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -149,6 +164,35 @@ export default function LoginPage() {
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">로그인</h1>
               <p className="text-gray-600">계정에 접속하세요</p>
+            </div>
+
+            {/* Demo User Info */}
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <span className="text-2xl">🎭</span>
+                <div className="flex-1">
+                  <h3 className="font-medium text-blue-900 mb-1">데모 계정으로 체험하기</h3>
+                  <p className="text-xs text-blue-700 mb-2">
+                    실제 데이터 없이 모든 기능을 둘러볼 수 있습니다
+                  </p>
+                  <div className="bg-white rounded p-2 text-xs space-y-1 mb-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">이메일:</span>
+                      <span className="font-mono text-gray-900">{DEMO_USER.email}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">비밀번호:</span>
+                      <span className="font-mono text-gray-900">{DEMO_USER.password}</span>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleDemoLogin}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm font-medium"
+                  >
+                    데모 계정 정보 입력
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {/* Error Alert */}

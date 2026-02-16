@@ -30,7 +30,7 @@ const Header: React.FC = () => {
             <Link href="/disclosure" className="text-gray-700 hover:text-blue-600 transition-colors">
               사업공시
             </Link>
-            <Link href="/support" className="text-gray-700 hover:text-blue-600 transition-colors">
+            <Link href="/help" className="text-gray-700 hover:text-blue-600 transition-colors">
               이용안내
             </Link>
           </nav>
@@ -95,7 +95,7 @@ const Header: React.FC = () => {
             <Link href="/investment" className="text-gray-700 hover:text-blue-600">투자</Link>
             <Link href="/loan" className="text-gray-700 hover:text-blue-600">대출</Link>
             <Link href="/disclosure" className="text-gray-700 hover:text-blue-600">사업공시</Link>
-            <Link href="/support" className="text-gray-700 hover:text-blue-600">이용안내</Link>
+            <Link href="/help" className="text-gray-700 hover:text-blue-600">이용안내</Link>
           </nav>
         )}
       </div>
