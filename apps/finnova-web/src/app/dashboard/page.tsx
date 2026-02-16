@@ -28,7 +28,7 @@ export default function DashboardPage() {
       title: '계정 관리',
       description: '개인정보 및 보안 설정',
       icon: '👤',
-      href: '/account/profile',
+      href: '/account',
       color: 'from-purple-500 to-purple-600'
     },
     {

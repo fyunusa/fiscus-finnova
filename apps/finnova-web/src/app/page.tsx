@@ -1,12 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Card, Button, Badge } from '@/components/ui';
 import Link from 'next/link';
 
 export default function Home() {
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check auth state
+  useEffect(() => {
+    const authState = localStorage.getItem('isLoggedIn');
+    setIsLoggedIn(authState === 'true');
+  }, []);
 
   const faqs = [
     {
@@ -74,14 +81,14 @@ export default function Home() {
               당신의 재정적 목표를 달성하기 위해 함께합니다
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
-              <Link href="/investment">
+              <Link href={isLoggedIn ? "/dashboard/investments" : "/investment"}>
                 <Button className="bg-white text-blue-600 hover:bg-gray-50 px-8 py-3 rounded-lg font-semibold text-lg">
-                  투자 상품 보기
+                  {isLoggedIn ? "내 투자 보기" : "투자 상품 보기"}
                 </Button>
               </Link>
-              <Link href="/loan">
+              <Link href={isLoggedIn ? "/dashboard/loans" : "/loan"}>
                 <Button className="bg-blue-400 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-semibold text-lg border border-blue-300">
-                  대출 신청하기
+                  {isLoggedIn ? "내 대출 보기" : "대출 신청하기"}
                 </Button>
               </Link>
             </div>
@@ -417,22 +424,41 @@ export default function Home() {
         <section className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-4xl font-bold mb-4">
-              지금 시작하세요
+              {isLoggedIn ? "대시보드로 이동" : "지금 시작하세요"}
             </h2>
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              FINNOVA와 함께 스마트한 금융의 미래를 경험해보세요
+              {isLoggedIn 
+                ? "당신의 투자 및 대출 현황을 한눈에 확인하세요"
+                : "FINNOVA와 함께 스마트한 금융의 미래를 경험해보세요"}
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
-              <Link href="/signup">
-                <Button className="bg-white text-blue-600 hover:bg-gray-50 px-8 py-3 rounded-lg font-semibold text-lg">
-                  회원가입하기
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button className="bg-blue-400 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-semibold text-lg border border-blue-300">
-                  로그인하기
-                </Button>
-              </Link>
+              {isLoggedIn ? (
+                <>
+                  <Link href="/dashboard">
+                    <Button className="bg-white text-blue-600 hover:bg-gray-50 px-8 py-3 rounded-lg font-semibold text-lg">
+                      대시보드 보기
+                    </Button>
+                  </Link>
+                  <Link href="/support/chat">
+                    <Button className="bg-blue-400 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-semibold text-lg border border-blue-300">
+                      고객 지원 문의
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/signup">
+                    <Button className="bg-white text-blue-600 hover:bg-gray-50 px-8 py-3 rounded-lg font-semibold text-lg">
+                      회원가입하기
+                    </Button>
+                  </Link>
+                  <Link href="/login">
+                    <Button className="bg-blue-400 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-semibold text-lg border border-blue-300">
+                      로그인하기
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </section>

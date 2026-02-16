@@ -106,6 +106,10 @@ export default function LoginPage() {
         localStorage.removeItem('loginAttempts');
         localStorage.removeItem('loginLockoutTime');
 
+        // Set auth state
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userName', email.split('@')[0]);
+
         // Save remember me preference
         if (rememberMe) {
           localStorage.setItem('rememberedEmail', email);

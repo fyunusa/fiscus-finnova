@@ -1,11 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 const Header: React.FC = () => {
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState('');
 
-  const isLoggedIn = false; // Replace with actual auth state
+  // Check auth state from localStorage or auth context
+  useEffect(() => {
+    const authState = localStorage.getItem('isLoggedIn');
+    const userEmail = localStorage.getItem('rememberedEmail');
+    if (authState === 'true') {
+      setIsLoggedIn(true);
+      // Set user name from email or stored name
+      const name = localStorage.getItem('userName') || userEmail?.split('@')[0] || '사용자';
+      setUserName(name);
+    }
+  }, []);
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -43,7 +55,7 @@ const Header: React.FC = () => {
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
                 >
-                  <span>홍길동님</span>
+                  <span>{userName}님</span>
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                   </svg>
@@ -60,7 +72,15 @@ const Header: React.FC = () => {
                       대출관리
                     </Link>
                     <hr className="my-2" />
-                    <button className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50">
+                    <button 
+                      onClick={() => {
+                        localStorage.removeItem('isLoggedIn');
+                        localStorage.removeItem('userName');
+                        setIsLoggedIn(false);
+                        setUserName('');
+                      }}
+                      className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50"
+                    >
                       로그아웃
                     </button>
                   </div>
