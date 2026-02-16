@@ -256,7 +256,7 @@ export default function DashboardPage() {
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h3 className="font-semibold text-gray-900 mb-4">추가 자료</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Link href="/help">
+              <Link href="/support">
                 <Card className="hover:shadow-md transition-shadow cursor-pointer">
                   <div className="p-4">
                     <div className="text-2xl mb-2">❓</div>

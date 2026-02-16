@@ -86,7 +86,7 @@ export default function Home() {
                   {isLoggedIn ? "내 투자 보기" : "투자 상품 보기"}
                 </Button>
               </Link>
-              <Link href={isLoggedIn ? "/dashboard/loans" : "/loan"}>
+              <Link href={isLoggedIn ? "/dashboard/loans/" : "/loan"}>
                 <Button className="bg-blue-400 hover:bg-blue-500 text-white px-8 py-3 rounded-lg font-semibold text-lg border border-blue-300">
                   {isLoggedIn ? "내 대출 보기" : "대출 신청하기"}
                 </Button>
@@ -331,7 +331,7 @@ export default function Home() {
               <p className="text-gray-600 mb-4">
                 FINNOVA 이용에 대해 자주 묻는 질문과 답변입니다
               </p>
-              <Link href="/help">
+              <Link href="/support">
                 <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium">
                   더 많은 도움말 보기
                 </Button>
@@ -388,7 +388,7 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Link href="/help">
+              <Link href="/support">
                 <Card className="hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer p-8 text-center border border-gray-200">
                   <div className="text-5xl mb-4">❓</div>
                   <h3 className="font-bold text-gray-900 mb-2 text-lg">도움말 센터</h3>

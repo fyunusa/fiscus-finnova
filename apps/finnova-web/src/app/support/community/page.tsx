@@ -2,51 +2,127 @@
 
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
-import { Card, Button, Badge, Alert, Table, Input, Select } from '@/components/ui';
+import { Card, Button, Badge, Input } from '@/components/ui';
 import Link from 'next/link';
 
-interface DataItem {
+interface CommunityPost {
   id: string;
   title: string;
-  description?: string;
-  status?: string;
-  createdAt?: string;
+  author: string;
+  category: string;
+  replies: number;
+  views: number;
+  likes: number;
+  lastActivity: string;
+  avatar: string;
+  excerpt: string;
 }
 
 export default function CommunityPage() {
-  const [data, setData] = useState<DataItem[]>([]);
+  const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
   useEffect(() => {
     // Simulated data loading
     setTimeout(() => {
-      setData([
+      setPosts([
         {
           id: '1',
-          title: '샘플 항목 1',
-          description: '커뮤니티 관련 샘플 데이터입니다.',
-          status: 'active',
-          createdAt: '2024-02-14',
+          title: '투자 포트폴리오 관리 팁을 공유합니다',
+          author: '투자자A',
+          category: 'tips',
+          replies: 24,
+          views: 512,
+          likes: 48,
+          lastActivity: '2시간 전',
+          avatar: '👤',
+          excerpt: '오래된 투자 경험을 바탕으로 효과적인 포트폴리오 관리 방법을 공유합니다...',
         },
         {
           id: '2',
-          title: '샘플 항목 2',
-          description: '추가 샘플 데이터입니다.',
-          status: 'pending',
-          createdAt: '2024-02-13',
+          title: '대출 상환 기간 연장 가능한가요?',
+          author: '대출자B',
+          category: 'loan',
+          replies: 8,
+          views: 156,
+          likes: 12,
+          lastActivity: '3시간 전',
+          avatar: '👤',
+          excerpt: '현재 대출 상품의 상환 기간을 연장할 수 있는지 알고 싶습니다...',
+        },
+        {
+          id: '3',
+          title: '투자 수익이 기대보다 적네요',
+          author: '투자자C',
+          category: 'investment',
+          replies: 15,
+          views: 287,
+          likes: 31,
+          lastActivity: '5시간 전',
+          avatar: '👤',
+          excerpt: '작년 대비 올해 투자 수익률이 낮아진 것 같습니다. 다른 분들은 어떠신가요?',
+        },
+        {
+          id: '4',
+          title: '새로운 상품 추천받습니다',
+          author: '초보자D',
+          category: 'tips',
+          replies: 19,
+          views: 403,
+          likes: 42,
+          lastActivity: '6시간 전',
+          avatar: '👤',
+          excerpt: '투자 초보자입니다. 초보자 친화적인 상품 추천받을 수 있을까요?',
+        },
+        {
+          id: '5',
+          title: '앱 오류 보고합니다',
+          author: '사용자E',
+          category: 'bug',
+          replies: 5,
+          views: 89,
+          likes: 3,
+          lastActivity: '8시간 전',
+          avatar: '👤',
+          excerpt: '대시보드 로딩 중 간헐적으로 오류가 발생합니다...',
         },
       ]);
       setLoading(false);
-    }, 1000);
+    }, 600);
   }, []);
 
-  const filteredData = data.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus;
-    return matchesSearch && matchesStatus;
+  const categories = [
+    { id: 'all', name: '전체', icon: '📋', color: 'gray' },
+    { id: 'investment', name: '투자', icon: '📈', color: 'green' },
+    { id: 'loan', name: '대출', icon: '💰', color: 'blue' },
+    { id: 'tips', name: '팁/노하우', icon: '💡', color: 'yellow' },
+    { id: 'bug', name: '버그 신고', icon: '🐛', color: 'red' },
+  ];
+
+  const filteredPosts = posts.filter(post => {
+    const matchesSearch = 
+      post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      post.excerpt.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || post.category === selectedCategory;
+    return matchesSearch && matchesCategory;
   });
+
+  const getCategoryColor = (category: string) => {
+    switch(category) {
+      case 'investment': return 'bg-green-100 text-green-800';
+      case 'loan': return 'bg-blue-100 text-blue-800';
+      case 'tips': return 'bg-yellow-100 text-yellow-800';
+      case 'bug': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const cat = categories.find(c => c.id === category);
+    return cat?.icon || '📋';
+  };
 
   const breadcrumbItems = [
       { label: '홈', href: '/' },
@@ -83,11 +159,11 @@ export default function CommunityPage() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">커뮤니티</h1>
                 <p className="mt-2 text-gray-600">
-                  커뮤니티 관련 정보를 관리하고 확인할 수 있습니다.
+                  피스커스 커뮤니티에서 경험을 나누고 질문하세요
                 </p>
               </div>
               <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium">
-                새로 만들기
+                새 글 작성
               </Button>
             </div>
           </div>
@@ -95,142 +171,181 @@ export default function CommunityPage() {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Filters */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  검색
-                </label>
-                <Input
-                  type="text"
-                  placeholder="제목으로 검색..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+          {/* Community Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <Card className="bg-white shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">총 게시글</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">1,247</p>
+                </div>
+                <div className="text-4xl">📝</div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  상태
-                </label>
-                <Select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            </Card>
+            <Card className="bg-white shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">활성 회원</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">3,842</p>
+                </div>
+                <div className="text-4xl">👥</div>
+              </div>
+            </Card>
+            <Card className="bg-white shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">오늘 답변</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">156</p>
+                </div>
+                <div className="text-4xl">💬</div>
+              </div>
+            </Card>
+            <Card className="bg-white shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm font-medium">평균 응답 시간</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-2">42분</p>
+                </div>
+                <div className="text-4xl">⚡</div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Search and Filter */}
+          <Card className="bg-white shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Input
+                type="text"
+                placeholder="게시글 검색..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium">
+                검색
+              </Button>
+            </div>
+
+            {/* Category Filter */}
+            <div className="flex flex-wrap gap-2">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                    selectedCategory === cat.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
                 >
-                  <option value="all">전체</option>
-                  <option value="active">활성</option>
-                  <option value="pending">대기</option>
-                  <option value="completed">완료</option>
-                </Select>
+                  {cat.icon} {cat.name}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          {/* Posts List */}
+          <div className="space-y-4">
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">로딩 중...</span>
               </div>
-              <div className="flex items-end">
-                <Button className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md font-medium">
-                  필터 적용
+            ) : filteredPosts.length > 0 ? (
+              filteredPosts.map((post) => (
+                <Card
+                  key={post.id}
+                  className="bg-white shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-blue-200 transition-all cursor-pointer"
+                >
+                  <div className="flex gap-4">
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-lg">
+                        {post.avatar}
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600 truncate">
+                            {post.title}
+                          </h3>
+                          <p className="text-gray-600 text-sm mt-1">{post.excerpt}</p>
+                        </div>
+                        <Badge className={`flex-shrink-0 ml-2 ${getCategoryColor(post.category)}`}>
+                          {getCategoryIcon(post.category)} {categories.find(c => c.id === post.category)?.name}
+                        </Badge>
+                      </div>
+
+                      {/* Meta */}
+                      <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
+                        <span>작성자: {post.author}</span>
+                        <span>·</span>
+                        <span>{post.lastActivity}</span>
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="flex-shrink-0 flex items-center gap-6 ml-4 text-right">
+                      <div className="text-center">
+                        <p className="text-lg font-semibold text-gray-900">{post.replies}</p>
+                        <p className="text-xs text-gray-500">답변</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-semibold text-gray-900">{post.views}</p>
+                        <p className="text-xs text-gray-500">조회</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-semibold text-gray-900">❤️ {post.likes}</p>
+                        <p className="text-xs text-gray-500">좋아요</p>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            ) : (
+              <Card className="bg-white shadow-sm border border-gray-200 p-12 text-center">
+                <div className="text-gray-400 text-5xl mb-4">📭</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  검색 결과가 없습니다
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  다른 검색어나 카테고리를 시도해보세요
+                </p>
+                <Button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedCategory('all');
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+                >
+                  전체 보기
+                </Button>
+              </Card>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {!loading && filteredPosts.length > 0 && (
+            <div className="mt-8 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                총 {filteredPosts.length}개 글 중 1-{Math.min(5, filteredPosts.length)}개 표시
+              </p>
+              <div className="flex gap-2">
+                <Button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                  이전
+                </Button>
+                <Button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  1
+                </Button>
+                <Button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                  다음
                 </Button>
               </div>
             </div>
-          </div>
-
-          {/* Data Display */}
-          <Card className="bg-white shadow-sm border border-gray-200">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  커뮤니티 목록
-                </h2>
-                <Badge className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                  총 {filteredData.length}개
-                </Badge>
-              </div>
-
-              {loading ? (
-                <div className="flex items-center justify-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                  <span className="ml-3 text-gray-600">로딩 중...</span>
-                </div>
-              ) : filteredData.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          제목
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          설명
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          상태
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          생성일
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          작업
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredData.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {item.title}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-gray-600 max-w-xs truncate">
-                              {item.description}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                item.status === 'active'
-                                  ? 'bg-green-100 text-green-800'
-                                  : item.status === 'pending'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}
-                            >
-                              {item.status === 'active' ? '활성' : 
-                               item.status === 'pending' ? '대기' : '기타'}
-                            </Badge>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.createdAt}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                            <Button className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded text-xs">
-                              상세
-                            </Button>
-                            <Button className="text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1 rounded text-xs">
-                              수정
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-gray-400 text-lg mb-2">📄</div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    데이터가 없습니다
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    조건에 맞는 커뮤니티 항목을 찾을 수 없습니다.
-                  </p>
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
-                    새로 만들기
-                  </Button>
-                </div>
-              )}
-            </div>
-          </Card>
+          )}
         </div>
       </div>
     </Layout>

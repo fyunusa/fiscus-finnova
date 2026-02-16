@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 const Header: React.FC = () => {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -9,15 +11,33 @@ const Header: React.FC = () => {
 
   // Check auth state from localStorage or auth context
   useEffect(() => {
-    const authState = localStorage.getItem('isLoggedIn');
-    const userEmail = localStorage.getItem('rememberedEmail');
-    if (authState === 'true') {
-      setIsLoggedIn(true);
-      // Set user name from email or stored name
-      const name = localStorage.getItem('userName') || userEmail?.split('@')[0] || '사용자';
-      setUserName(name);
-    }
-  }, []);
+    const checkAuthState = () => {
+      const authState = localStorage.getItem('isLoggedIn');
+      const userEmail = localStorage.getItem('rememberedEmail');
+      if (authState === 'true') {
+        setIsLoggedIn(true);
+        // Set user name from email or stored name
+        const name = localStorage.getItem('userName') || userEmail?.split('@')[0] || '사용자';
+        setUserName(name);
+      } else {
+        setIsLoggedIn(false);
+        setUserName('');
+      }
+    };
+
+    checkAuthState();
+
+    // Listen for storage changes (for multi-tab support)
+    window.addEventListener('storage', checkAuthState);
+    
+    // Listen for route changes to re-check auth state
+    const handleRouteChange = () => {
+      setTimeout(checkAuthState, 100);
+    };
+    router.prefetch('/dashboard');
+    
+    return () => window.removeEventListener('storage', checkAuthState);
+  }, [router]);
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
@@ -42,7 +62,7 @@ const Header: React.FC = () => {
             <Link href="/disclosure" className="text-gray-700 hover:text-blue-600 transition-colors">
               사업공시
             </Link>
-            <Link href="/help" className="text-gray-700 hover:text-blue-600 transition-colors">
+            <Link href="/support" className="text-gray-700 hover:text-blue-600 transition-colors">
               이용안내
             </Link>
           </nav>
@@ -76,8 +96,11 @@ const Header: React.FC = () => {
                       onClick={() => {
                         localStorage.removeItem('isLoggedIn');
                         localStorage.removeItem('userName');
+                        localStorage.removeItem('rememberedEmail');
                         setIsLoggedIn(false);
                         setUserName('');
+                        setIsUserMenuOpen(false);
+                        router.push('/');
                       }}
                       className="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-50"
                     >
@@ -115,7 +138,7 @@ const Header: React.FC = () => {
             <Link href="/investment" className="text-gray-700 hover:text-blue-600">투자</Link>
             <Link href="/loan" className="text-gray-700 hover:text-blue-600">대출</Link>
             <Link href="/disclosure" className="text-gray-700 hover:text-blue-600">사업공시</Link>
-            <Link href="/help" className="text-gray-700 hover:text-blue-600">이용안내</Link>
+            <Link href="/support" className="text-gray-700 hover:text-blue-600">이용안내</Link>
           </nav>
         )}
       </div>
