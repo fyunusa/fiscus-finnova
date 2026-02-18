@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
@@ -14,142 +14,11 @@ import {
   CreditCard,
   Briefcase,
   ChevronRight,
+  AlertCircle,
+  Loader,
 } from 'lucide-react';
-
-interface Product {
-  id: string;
-  title: string;
-  type: 'apartment' | 'credit-card' | 'business-loan';
-  rate: number;
-  period: number;
-  fundingGoal: number;
-  fundingCurrent: number;
-  minInvestment: number;
-  borrowerType: string;
-  status: 'recruiting' | 'funding' | 'ending-soon' | 'closed';
-  badge?: string;
-  createdAt?: Date;
-}
-
-const MOCK_PRODUCTS: Product[] = [
-  // Apartment products
-  {
-    id: 'apt-001',
-    title: '강남구 아파트 담보 대출',
-    type: 'apartment',
-    rate: 8.5,
-    period: 12,
-    fundingGoal: 100000000,
-    fundingCurrent: 75000000,
-    minInvestment: 1000000,
-    borrowerType: '개인',
-    status: 'funding',
-    badge: '인기',
-    createdAt: new Date('2024-12-15'),
-  },
-  {
-    id: 'apt-002',
-    title: '서초동 빌라 담보 대출',
-    type: 'apartment',
-    rate: 7.8,
-    period: 18,
-    fundingGoal: 80000000,
-    fundingCurrent: 20000000,
-    minInvestment: 2000000,
-    borrowerType: '개인',
-    status: 'recruiting',
-    badge: '신규',
-    createdAt: new Date('2024-12-20'),
-  },
-  {
-    id: 'apt-003',
-    title: '목동 재건축 아파트 대출',
-    type: 'apartment',
-    rate: 9.2,
-    period: 24,
-    fundingGoal: 150000000,
-    fundingCurrent: 145000000,
-    minInvestment: 5000000,
-    borrowerType: '법인',
-    status: 'ending-soon',
-    badge: '마감임박',
-    createdAt: new Date('2024-12-01'),
-  },
-
-  // Credit card products
-  {
-    id: 'cc-001',
-    title: '골프용품 쇼핑몰 신용카드 외상채권',
-    type: 'credit-card',
-    rate: 9.5,
-    period: 6,
-    fundingGoal: 50000000,
-    fundingCurrent: 42000000,
-    minInvestment: 1000000,
-    borrowerType: '개인사업자',
-    status: 'funding',
-    badge: '고수익',
-    createdAt: new Date('2024-12-10'),
-  },
-  {
-    id: 'cc-002',
-    title: '뷰티샵 체인 신용카드 외상채권',
-    type: 'credit-card',
-    rate: 8.2,
-    period: 9,
-    fundingGoal: 40000000,
-    fundingCurrent: 15000000,
-    minInvestment: 500000,
-    borrowerType: '개인사업자',
-    status: 'recruiting',
-    badge: '신규',
-    createdAt: new Date('2024-12-18'),
-  },
-  {
-    id: 'cc-003',
-    title: '카페 프랜차이즈 신용카드 외상채권',
-    type: 'credit-card',
-    rate: 10.5,
-    period: 3,
-    fundingGoal: 30000000,
-    fundingCurrent: 28500000,
-    minInvestment: 1000000,
-    borrowerType: '개인사업자',
-    status: 'ending-soon',
-    badge: '마감임박',
-    createdAt: new Date('2024-12-05'),
-  },
-
-  // Business loan products
-  {
-    id: 'bl-001',
-    title: 'IT 스타트업 운영자금 대출',
-    type: 'business-loan',
-    rate: 10.5,
-    period: 24,
-    fundingGoal: 150000000,
-    fundingCurrent: 105000000,
-    minInvestment: 2000000,
-    borrowerType: '법인',
-    status: 'funding',
-    badge: '인기',
-    createdAt: new Date('2024-12-12'),
-  },
-  {
-    id: 'bl-002',
-    title: '식품제조 중소기업 설비자금',
-    type: 'business-loan',
-    rate: 8.8,
-    period: 36,
-    fundingGoal: 200000000,
-    fundingCurrent: 50000000,
-    minInvestment: 5000000,
-    borrowerType: '법인',
-    status: 'recruiting',
-    badge: '신규',
-    createdAt: new Date('2024-12-17'),
-  },
-];
+import * as investmentsService from '@/services/investments.service';
+import { Investment } from '@/services/investments.service';
 
 export default function InvestmentPage() {
   const router = useRouter();
@@ -157,6 +26,9 @@ export default function InvestmentPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [products, setProducts] = useState<Investment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string>('');
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -167,21 +39,78 @@ export default function InvestmentPage() {
     types: ['apartment', 'credit-card', 'business-loan'] as string[],
   });
 
-  const toggleFavorite = (id: string) => {
-    setFavorites((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
+  // Fetch investments on mount or when tab changes
+  useEffect(() => {
+    const fetchInvestments = async () => {
+      try {
+        setIsLoading(true);
+        setError('');
+        
+        const response = await investmentsService.getInvestments({
+          sort: activeTab as any,
+          limit: 50,
+        });
+
+        if (response.success) {
+          setProducts(response.data.data);
+        } else {
+          setError('Failed to load investments');
+        }
+      } catch (err: any) {
+        console.error('Error fetching investments:', err);
+        setError(err.message || 'Failed to load investments');
+      } finally {
+        setIsLoading(false);
       }
-      return newSet;
-    });
+    };
+
+    fetchInvestments();
+  }, [activeTab]);
+
+  // Load user's favorite investments on mount
+  useEffect(() => {
+    const loadFavorites = async () => {
+      try {
+        const response = await investmentsService.getUserFavorites();
+        if (response.success) {
+          const favoriteIds = new Set(response.data.map((inv) => inv.id));
+          setFavorites(favoriteIds);
+        }
+      } catch (err) {
+        console.error('Error loading favorites:', err);
+        // Silently fail - favorites are optional
+      }
+    };
+
+    loadFavorites();
+  }, []);
+
+  const toggleFavorite = async (id: string) => {
+    try {
+      const isFavorited = favorites.has(id);
+      
+      if (isFavorited) {
+        // Remove from favorites
+        await investmentsService.removeFromFavorites(id);
+        setFavorites((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(id);
+          return newSet;
+        });
+      } else {
+        // Add to favorites
+        await investmentsService.addToFavorites(id);
+        setFavorites((prev) => new Set(prev).add(id));
+      }
+    } catch (err: any) {
+      console.error('Error toggling favorite:', err);
+      alert(err.message || 'Failed to update favorite');
+    }
   };
 
-  // Filter and sort products
+  // Filter and sort products (client-side filtering for UI filters)
   const filteredProducts = useMemo(() => {
-    let products = MOCK_PRODUCTS.filter(
+    let result = products.filter(
       (p) =>
         p.rate >= filters.minRate &&
         p.rate <= filters.maxRate &&
@@ -193,30 +122,8 @@ export default function InvestmentPage() {
           p.borrowerType.includes(searchQuery))
     );
 
-    // Apply tab sorting
-    switch (activeTab) {
-      case 'popular':
-        products = products.sort((a, b) => b.fundingCurrent - a.fundingCurrent);
-        break;
-      case 'new':
-        products = products.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
-        break;
-      case 'ending':
-        products = products
-          .filter((p) => p.status === 'ending-soon')
-          .sort((a, b) => {
-            const fundingPercentA = a.fundingCurrent / a.fundingGoal;
-            const fundingPercentB = b.fundingCurrent / b.fundingGoal;
-            return fundingPercentB - fundingPercentA;
-          });
-        break;
-      case 'high':
-        products = products.sort((a, b) => b.rate - a.rate);
-        break;
-    }
-
-    return products;
-  }, [activeTab, filters, searchQuery]);
+    return result;
+  }, [products, filters, searchQuery]);
 
   const getProductIcon = (type: string) => {
     switch (type) {
@@ -231,7 +138,7 @@ export default function InvestmentPage() {
     }
   };
 
-  const getProductUrl = (product: Product) => {
+  const getProductUrl = (product: Investment) => {
     switch (product.type) {
       case 'apartment':
         return `/investment/apartment/${product.id}`;
@@ -417,7 +324,32 @@ export default function InvestmentPage() {
 
         {/* Product Grid */}
         <div className="max-w-6xl mx-auto px-4 py-12">
-          {filteredProducts.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <Loader className="animate-spin text-blue-600 mx-auto mb-4" size={40} />
+                <p className="text-gray-600 text-lg">상품 로딩 중...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <AlertCircle className="text-red-500 mx-auto mb-4" size={40} />
+                <p className="text-red-600 text-lg">{error}</p>
+                <button
+                  onClick={() => {
+                    setError('');
+                    setIsLoading(true);
+                    // Trigger re-fetch by changing tab or refreshing
+                    setActiveTab('popular');
+                  }}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  다시 시도
+                </button>
+              </div>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-600 text-lg">일치하는 상품이 없습니다.</p>
               <p className="text-gray-500 text-sm mt-2">다른 필터로 다시 시도해보세요.</p>

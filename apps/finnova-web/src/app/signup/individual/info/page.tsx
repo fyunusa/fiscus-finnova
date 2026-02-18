@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Alert, Input } from '@/components/ui';
+import { SignupFlowRedirect } from '@/components/SignupFlowRedirect';
+import { openAddressSearch, loadDaumPostcodeScript } from '@/services/daum.service';
+import { useSignupFlow } from '@/hooks/useSignupFlow';
 
 interface MemberInfo {
   name: string;
@@ -11,21 +14,56 @@ interface MemberInfo {
   gender: 'M' | 'F' | '';
   phone: string;
   address: string;
-  detailAddress: string;
+  postcode: string;
+  buildingName: string;
 }
 
 export default function MemberInfoPage() {
   const router = useRouter();
+  const { updateData, completeStep, getStepData } = useSignupFlow();
   const [info, setInfo] = useState<MemberInfo>({
     name: '김철수', // Auto-filled from verification
     birthDate: '1990-01-15', // Auto-filled from verification
     gender: 'M', // Auto-filled from verification
     phone: '010-1234-5678', // Auto-filled from verification
     address: '',
-    detailAddress: '',
+    postcode: '',
+    buildingName: '',
   });
   const [loading, setLoading] = useState(false);
-  const [showAddressModal, setShowAddressModal] = useState(false);
+
+  // Load stored data on mount
+  useEffect(() => {
+    const stepData = getStepData(4);
+    if (stepData.address) {
+      setInfo(prev => ({
+        ...prev,
+        address: stepData.address || '',
+        postcode: stepData.postcode || '',
+        buildingName: stepData.buildingName || '',
+      }));
+    }
+  }, [getStepData]);
+
+  // Load Daum Postcode script on component mount
+  useEffect(() => {
+    loadDaumPostcodeScript().catch((error) => {
+      console.error('Failed to load Daum Postcode:', error);
+    });
+  }, []);
+
+  const handleAddressSearch = async () => {
+    try {
+      const result = await openAddressSearch();
+      handleChange('address', result.address);
+      handleChange('postcode', result.postcode || '');
+      handleChange('buildingName', result.buildingName || result.detailAddress || '');
+      console.log('✅ Address selected:', result);
+    } catch (error) {
+      console.error('🚫 Address search failed:', error);
+      alert('주소 검색 기능을 로드할 수 없습니다. 잠시 후 다시 시도해주세요.');
+    }
+  };
 
   const handleChange = (field: keyof MemberInfo, value: string) => {
     setInfo(prev => ({
@@ -35,15 +73,22 @@ export default function MemberInfoPage() {
   };
 
   const handleProceed = async () => {
-    if (!info.address.trim() || !info.detailAddress.trim()) {
+    if (!info.address.trim() || !info.postcode.trim() || !info.buildingName.trim()) {
       alert('주소를 모두 입력해주세요');
       return;
     }
 
     setLoading(true);
     try {
-      // Save member info (API integration)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Save address data to signup flow
+      updateData({
+        address: info.address,
+        postcode: info.postcode,
+        buildingName: info.buildingName,
+      });
+      completeStep(4);
+      
+      console.log('✅ Address information saved');
       router.push('/signup/individual/credentials');
     } catch (error) {
       console.error('Error:', error);
@@ -54,9 +99,10 @@ export default function MemberInfoPage() {
   };
 
   return (
-    <Layout>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
-        <Card className="w-full max-w-2xl">
+    <SignupFlowRedirect currentStep={4}>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
+          <Card className="w-full max-w-2xl">
           {/* Progress Indicator */}
           <div className="mb-8 pb-6 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
@@ -160,7 +206,7 @@ export default function MemberInfoPage() {
                       className="flex-1"
                     />
                     <Button
-                      onClick={() => setShowAddressModal(true)}
+                      onClick={handleAddressSearch}
                       variant="outline"
                       disabled={loading}
                     >
@@ -174,13 +220,27 @@ export default function MemberInfoPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    상세주소 (필수)
+                    우편번호 (필수)
                   </label>
                   <Input
                     type="text"
-                    placeholder="아파트 동, 호수 등을 입력하세요"
-                    value={info.detailAddress}
-                    onChange={(e) => handleChange('detailAddress', e.target.value)}
+                    placeholder="우편번호"
+                    value={info.postcode}
+                    onChange={(e) => handleChange('postcode', e.target.value)}
+                    disabled={loading}
+                    className="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    건물명 (필수)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="건물명 또는 구분 정보"
+                    value={info.buildingName}
+                    onChange={(e) => handleChange('buildingName', e.target.value)}
                     disabled={loading}
                     className="w-full"
                   />
@@ -207,13 +267,14 @@ export default function MemberInfoPage() {
               onClick={handleProceed}
               className="flex-1"
               variant="primary"
-              disabled={!info.address.trim() || !info.detailAddress.trim() || loading}
+              disabled={!info.address.trim() || !info.postcode.trim() || !info.buildingName.trim() || loading}
             >
               {loading ? '진행 중...' : '다음 단계로'}
             </Button>
           </div>
-        </Card>
-      </div>
-    </Layout>
+          </Card>
+        </div>
+      </Layout>
+    </SignupFlowRedirect>
   );
 }

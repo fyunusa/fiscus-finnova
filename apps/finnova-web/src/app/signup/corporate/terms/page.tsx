@@ -72,6 +72,17 @@ export default function CorporateTermsPage() {
   const allChecked = Object.values(checkboxes).every((v) => v);
   const mandatoryChecked = checkboxes.TAC_1 && checkboxes.TAC_2 && checkboxes.TAC_3 && checkboxes.consent;
 
+  const handleNext = () => {
+    if (!mandatoryChecked) return;
+    
+    // Store terms agreement in session for final submission
+    sessionStorage.setItem('agreedToTerms', 'true');
+    sessionStorage.setItem('agreedToPrivacy', checkboxes.TAC_2.toString());
+    sessionStorage.setItem('agreedToMarketing', checkboxes.TAC_5.toString());
+    
+    router.push('/signup/corporate/verify');
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white px-4 py-8">
@@ -81,7 +92,7 @@ export default function CorporateTermsPage() {
               약관 및 동의
             </h1>
             <p className="text-gray-600">
-              1 / 11 단계
+              1 / 5 단계
             </p>
           </div>
 
@@ -283,7 +294,7 @@ export default function CorporateTermsPage() {
               이전
             </Button>
             <Button
-              onClick={() => router.push('/signup/corporate/verify')}
+              onClick={handleNext}
               disabled={!mandatoryChecked}
               className="flex-1"
             >

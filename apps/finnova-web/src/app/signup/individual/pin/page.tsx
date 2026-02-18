@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Alert } from '@/components/ui';
+import { SignupFlowRedirect } from '@/components/SignupFlowRedirect';
 
 interface PINSetup {
   pin: string;
@@ -76,6 +77,15 @@ export default function PINSetupPage() {
     try {
       // Save PIN (API integration)
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mark step 9 as completed in both localStorage and sessionStorage
+      localStorage.setItem('signup_step_9_completed', 'true');
+      sessionStorage.setItem('signup_step_9_completed', 'true');
+      
+      // Optionally store PIN metadata
+      sessionStorage.setItem('pinSet', 'true');
+      
+      // Check if there's a complete page, otherwise go to dashboard
       router.push('/signup/individual/complete');
     } catch (err) {
       setError('PIN 설정 중 오류가 발생했습니다');
@@ -85,8 +95,9 @@ export default function PINSetupPage() {
   };
 
   return (
-    <Layout>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
+    <SignupFlowRedirect currentStep={9}>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
         <Card className="w-full max-w-2xl">
           {/* Progress Indicator */}
           <div className="mb-8 pb-6 border-b border-gray-200">
@@ -240,5 +251,6 @@ export default function PINSetupPage() {
         </Card>
       </div>
     </Layout>
+    </SignupFlowRedirect>
   );
 }

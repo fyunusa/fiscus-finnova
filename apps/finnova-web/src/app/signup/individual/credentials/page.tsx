@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Alert, Input } from '@/components/ui';
+import { SignupFlowRedirect } from '@/components/SignupFlowRedirect';
+import { createAccountFromSignup } from '@/services/account.service';
+import { useSignupFlow } from '@/hooks/useSignupFlow';
 
 interface Credentials {
   email: string;
@@ -20,6 +23,7 @@ interface PasswordStrength {
 
 export default function CredentialsSetupPage() {
   const router = useRouter();
+  const { updateData, completeStep, getAllData, markAccountCreated } = useSignupFlow();
   const [credentials, setCredentials] = useState<Credentials>({
     email: '',
     password: '',
@@ -37,15 +41,15 @@ export default function CredentialsSetupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [emailExists, setEmailExists] = useState(false);
 
-  const passwordRegex = {
-    minLength: /.{8,}/,
-    hasLetters: /[a-zA-Z]/,
-    hasNumbers: /[0-9]/,
-    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/,
-  };
-
   useEffect(() => {
     if (credentials.password) {
+      const passwordRegex = {
+        minLength: /.{8,}/,
+        hasLetters: /[a-zA-Z]/,
+        hasNumbers: /[0-9]/,
+        hasSpecial: /[!@#$%^&*(),.?":{}|<>]/,
+      };
+
       setStrength({
         minLength: passwordRegex.minLength.test(credentials.password),
         hasLetters: passwordRegex.hasLetters.test(credentials.password),
@@ -54,6 +58,13 @@ export default function CredentialsSetupPage() {
       });
     }
   }, [credentials.password]);
+
+  const passwordRegex = {
+    minLength: /.{8,}/,
+    hasLetters: /[a-zA-Z]/,
+    hasNumbers: /[0-9]/,
+    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/,
+  };
 
   const strengthScore = Object.values(strength).filter(Boolean).length;
   const passwordValid = Object.values(strength).every(Boolean);
@@ -93,26 +104,67 @@ export default function CredentialsSetupPage() {
 
     setLoading(true);
     try {
-      // Check if email already exists
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Demo: check if email is demo@example.com
-      if (credentials.email === 'demo@example.com') {
-        setEmailExists(true);
-        setError('이미 등록된 이메일입니다');
+      // Gather all collected data from signup flow
+      const allData = getAllData();
+
+      // Create account with all signup data
+      const result = await createAccountFromSignup({
+        username: credentials.email.split('@')[0], // Use email prefix as username
+        email: credentials.email,
+        password: credentials.password,
+        name: allData.verifiedName || '',
+        birthDate: allData.verifiedBirthDate || '',
+        gender: (allData.verifiedGender === 'F' ? 'F' : 'M') as 'M' | 'F',
+        phone: allData.verifiedPhone || '',
+        address: allData.address || '',
+        buildingName: allData.buildingName || '',
+        postcode: allData.postcode || '',
+        agreedToTerms: allData.agreedToTerms || false,
+        agreedToPrivacy: allData.agreedToPrivacy || false,
+        agreedToMarketing: allData.agreedToMarketing || false,
+        niceCI: allData.niceCI || '',
+        niceDI: allData.niceDI || '',
+      });
+
+      if (!result.success) {
+        setError(result.error || '계정 생성에 실패했습니다');
         return;
       }
 
+      // Mark account as created in signup flow
+      completeStep(5);
+      markAccountCreated();
+
+      // Store authentication tokens and user info
+      if (result.accessToken) {
+        localStorage.setItem('accessToken', result.accessToken);
+      }
+      if (result.refreshToken) {
+        localStorage.setItem('refreshToken', result.refreshToken);
+      }
+      if (result.userId) {
+        localStorage.setItem('userId', result.userId);
+      }
+      // Store username for display in header
+      const displayName = allData.verifiedName || credentials.email.split('@')[0];
+      localStorage.setItem('username', displayName);
+
+      console.log('✅ Account created successfully:', result.userId);
+
+      // Redirect to next step (Step 6: Bank Account)
       router.push('/signup/individual/bank');
     } catch (err) {
-      setError('오류가 발생했습니다');
+      const errorMsg = err instanceof Error ? err.message : '계정 생성 중 오류가 발생했습니다';
+      setError(errorMsg);
+      console.error('Account creation error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Layout>
+    <SignupFlowRedirect currentStep={5}>
+      <Layout>
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
         <Card className="w-full max-w-2xl">
           {/* Progress Indicator */}
@@ -268,5 +320,6 @@ export default function CredentialsSetupPage() {
         </Card>
       </div>
     </Layout>
+    </SignupFlowRedirect>
   );
 }

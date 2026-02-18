@@ -20,6 +20,7 @@ export default function NewPasswordPage() {
   const email = searchParams.get('email') || '';
 
   const [formData, setFormData] = useState({
+    otp: '',
     newPassword: '',
     confirmPassword: '',
   });
@@ -72,21 +73,28 @@ export default function NewPasswordPage() {
 
     // Validation
     const newErrors: Record<string, string> = {};
+
+    if (!formData.otp) {
+      newErrors.otp = 'OTP를 입력해주세요';
+    } else if (!/^\d{6}$/.test(formData.otp)) {
+      newErrors.otp = 'OTP는 6자리 숫자여야 합니다';
+    }
+
     const rules = validatePassword(formData.newPassword);
 
     if (!formData.newPassword) {
-      newErrors.newPassword = 'Password is required';
+      newErrors.newPassword = '새 비밀번호를 입력해주세요';
     } else if (!rules.minLength) {
-      newErrors.newPassword = 'Password must be at least 8 characters';
+      newErrors.newPassword = '비밀번호는 최소 8자 이상이어야 합니다';
     } else if (!rules.hasLetter || !rules.hasNumber || !rules.hasSpecial) {
       newErrors.newPassword =
-        'Password must contain letters, numbers, and special characters';
+        '비밀번호는 문자, 숫자, 특수문자를 포함해야 합니다';
     }
 
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
+      newErrors.confirmPassword = '비밀번호 확인을 입력해주세요';
     } else if (formData.newPassword !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = '비밀번호가 일치하지 않습니다';
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -97,15 +105,22 @@ export default function NewPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: API call to reset password
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call backend API to reset password
+      const response = await fetch('http://localhost:4000/api/v1/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          token: formData.otp,
+          newPassword: formData.newPassword,
+        }),
+      });
 
-      // In real implementation, check if password was used in last 3 resets
-      const isReusedPassword = false; // This would come from API
+      const result = await response.json();
 
-      if (isReusedPassword) {
+      if (!response.ok || !result.success) {
         setErrors({
-          newPassword: 'Cannot reuse your last 3 passwords. Please choose a different one.',
+          submit: result.message || '비밀번호 재설정에 실패했습니다. 다시 시도해주세요.',
         });
         setIsSubmitting(false);
         return;
@@ -117,9 +132,10 @@ export default function NewPasswordPage() {
       setTimeout(() => {
         router.push('/login');
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Failed to reset password:', error);
       setErrors({
-        submit: 'Failed to reset password. Please try again.',
+        submit: '비밀번호 재설정 중 오류가 발생했습니다. 다시 시도해주세요.',
       });
       setIsSubmitting(false);
     }
@@ -149,10 +165,10 @@ export default function NewPasswordPage() {
                 </div>
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Password Reset Successful
+                비밀번호 재설정 완료
               </h2>
               <p className="text-gray-600 mb-6">
-                Your password has been updated. Redirecting to login...
+                비밀번호가 성공적으로 변경되었습니다. 로그인 페이지로 이동합니다...
               </p>
               <div className="flex justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -174,14 +190,14 @@ export default function NewPasswordPage() {
             {/* Header */}
             <div className="text-center mb-8">
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                Set New Password
+                비밀번호 재설정
               </h1>
               <p className="text-gray-600">
-                Create a strong password for your account
+                이메일로 받은 OTP와 새 비밀번호를 입력하세요
               </p>
               {email && (
                 <p className="text-sm text-gray-500 mt-2">
-                  Account: {email}
+                  계정: {email}
                 </p>
               )}
             </div>
@@ -194,10 +210,35 @@ export default function NewPasswordPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* OTP */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  OTP (6자리)
+                </label>
+                <Input
+                  type="text"
+                  maxLength={6}
+                  value={formData.otp}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    setFormData({ ...formData, otp: value });
+                    if (errors.otp) {
+                      setErrors({ ...errors, otp: '' });
+                    }
+                  }}
+                  error={!!errors.otp}
+                  placeholder="이메일로 받은 OTP를 입력하세요"
+                  className="w-full text-center tracking-widest"
+                />
+                {errors.otp && (
+                  <p className="mt-1 text-sm text-red-600">{errors.otp}</p>
+                )}
+              </div>
+
               {/* New Password */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  New Password
+                  새 비밀번호
                 </label>
                 <div className="relative">
                   <Input
@@ -205,7 +246,7 @@ export default function NewPasswordPage() {
                     value={formData.newPassword}
                     onChange={handlePasswordChange}
                     error={!!errors.newPassword}
-                    placeholder="Enter new password"
+                    placeholder="새 비밀번호를 입력하세요"
                     className="pr-10"
                   />
                   <button
@@ -252,7 +293,7 @@ export default function NewPasswordPage() {
                       />
                     </div>
                     <p className="text-xs text-gray-600">
-                      Strength:{' '}
+                      강도:{' '}
                       <span
                         className={
                           passwordStrength === 'weak'
@@ -262,7 +303,7 @@ export default function NewPasswordPage() {
                             : 'text-green-600'
                         }
                       >
-                        {passwordStrength.charAt(0).toUpperCase() + passwordStrength.slice(1)}
+                        {passwordStrength === 'weak' ? '약함' : passwordStrength === 'medium' ? '중간' : '강함'}
                       </span>
                     </p>
                   </div>
@@ -273,14 +314,14 @@ export default function NewPasswordPage() {
               {rules && (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                   <p className="text-sm font-medium text-gray-900 mb-2">
-                    Password Requirements:
+                    비밀번호 요구사항:
                   </p>
                   <ul className="space-y-1">
                     {[
-                      { label: 'At least 8 characters', met: rules.minLength },
-                      { label: 'Contains letters', met: rules.hasLetter },
-                      { label: 'Contains numbers', met: rules.hasNumber },
-                      { label: 'Contains special characters', met: rules.hasSpecial },
+                      { label: '8글자 이상', met: rules.minLength },
+                      { label: '영문자 포함', met: rules.hasLetter },
+                      { label: '숫자 포함', met: rules.hasNumber },
+                      { label: '특수문자 포함', met: rules.hasSpecial },
                     ].map((req, i) => (
                       <li key={i} className="flex items-center text-sm">
                         {req.met ? (
@@ -304,7 +345,7 @@ export default function NewPasswordPage() {
               {/* Confirm Password */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirm New Password
+                  비밀번호 확인
                 </label>
                 <Input
                   type={showPassword ? 'text' : 'password'}
@@ -313,7 +354,7 @@ export default function NewPasswordPage() {
                     setFormData({ ...formData, confirmPassword: e.target.value })
                   }
                   error={!!errors.confirmPassword}
-                  placeholder="Re-enter your password"
+                  placeholder="비밀번호를 다시 입력하세요"
                 />
                 {errors.confirmPassword && (
                   <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
@@ -327,7 +368,7 @@ export default function NewPasswordPage() {
                 className="w-full"
                 size="lg"
               >
-                {isSubmitting ? 'Resetting Password...' : 'Reset Password'}
+                {isSubmitting ? '비밀번호 재설정 중...' : '비밀번호 재설정'}
               </Button>
             </form>
 
@@ -337,7 +378,7 @@ export default function NewPasswordPage() {
                 href="/login"
                 className="text-sm text-gray-600 hover:text-gray-900"
               >
-                ← Back to Login
+                ← 로그인 페이지로 돌아가기
               </Link>
             </div>
           </Card>

@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Badge } from '@/components/ui';
-import { ChevronLeft, Heart, Share2, TrendingUp } from 'lucide-react';
+import { ChevronLeft, Heart, Share2, CreditCard, AlertCircle, Loader } from 'lucide-react';
+import * as investmentsService from '@/services/investments.service';
+import { Investment } from '@/services/investments.service';
 
 export default function CreditCardDetailPage() {
   const router = useRouter();
@@ -12,39 +14,84 @@ export default function CreditCardDetailPage() {
   const productId = params.id as string;
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'investor'>('info');
+  const [product, setProduct] = useState<Investment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string>('');
+  const [showCalculator, setShowCalculator] = useState(false);
 
-  // Mock data
-  const product = {
-    id: productId,
-    title: '골프용품 쇼핑몰 신용카드 외상채권',
-    rate: 9.5,
-    period: 6,
-    fundingGoal: 50000000,
-    fundingCurrent: 42000000,
-    minInvestment: 1000000,
-    status: 'funding',
-    merchant: {
-      businessName: '골프마트 온라인',
-      businessRegistration: '123-45-67890',
-      industryCode: '47.11',
-      industry: '일반 종합 소매업',
-      establishedYear: 2015,
-    },
-    cardSales: [
-      { month: '8월', amount: 8500000 },
-      { month: '9월', amount: 9200000 },
-      { month: '10월', amount: 8800000 },
-      { month: '11월', amount: 9500000 },
-      { month: '12월', amount: 10200000 },
-      { month: '1월', amount: 9800000 },
-    ],
+  // Fetch investment detail
+  useEffect(() => {
+    const fetchInvestment = async () => {
+      try {
+        setIsLoading(true);
+        setError('');
+        const response = await investmentsService.getInvestmentDetail(productId);
+        
+        if (response.success && response.data) {
+          setProduct(response.data);
+          
+          // Check if user has favorited this investment
+          try {
+            const favoriteCheck = await investmentsService.isFavorited(productId);
+            setIsFavorite(favoriteCheck.data.isFavorited);
+          } catch (err) {
+            console.error('Error checking favorite status:', err);
+            // Silently fail - default to not favorited
+          }
+        } else {
+          setError('투자 상품을 불러올 수 없습니다.');
+        }
+      } catch (err: any) {
+        console.error('Error fetching investment:', err);
+        setError(err.message || '투자 상품을 불러올 수 없습니다.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (productId) {
+      fetchInvestment();
+    }
+  }, [productId]);
+
+  const handleInvest = () => {
+    router.push(`/investment/${productId}/invest`);
   };
 
+  const handleCalculator = () => {
+    setShowCalculator(true);
+  };
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Loader className="animate-spin text-purple-600 mx-auto mb-4" size={40} />
+            <p className="text-gray-600">상품 정보를 불러오는 중...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Card className="p-8 text-center">
+            <AlertCircle className="text-red-500 mx-auto mb-4" size={40} />
+            <p className="text-red-600 text-lg mb-4">{error || '상품을 찾을 수 없습니다.'}</p>
+            <Button onClick={() => router.back()} className="bg-purple-600 text-white">
+              돌아가기
+            </Button>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
   const fundingPercent = Math.round((product.fundingCurrent / product.fundingGoal) * 100);
-  const avgMonthlySales = Math.floor(
-    product.cardSales.reduce((a, b) => a + b.amount, 0) / product.cardSales.length
-  );
-  const estimatedDailySales = Math.floor(avgMonthlySales / 30);
 
   return (
     <Layout>
@@ -61,7 +108,19 @@ export default function CreditCardDetailPage() {
             </button>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setIsFavorite(!isFavorite)}
+                onClick={async () => {
+                  try {
+                    if (isFavorite) {
+                      await investmentsService.removeFromFavorites(productId);
+                    } else {
+                      await investmentsService.addToFavorites(productId);
+                    }
+                    setIsFavorite(!isFavorite);
+                  } catch (err: any) {
+                    console.error('Error toggling favorite:', err);
+                    alert(err.message || '즐겨찾기 변경에 실패했습니다.');
+                  }
+                }}
                 className={`p-2 rounded-full transition ${
                   isFavorite
                     ? 'bg-red-100 text-red-600'
@@ -97,9 +156,9 @@ export default function CreditCardDetailPage() {
                   <p className="text-3xl font-bold text-gray-900">{product.period}개월</p>
                 </Card>
                 <Card className="p-4 text-center">
-                  <p className="text-sm text-gray-600 mb-1">월평균 매출</p>
-                  <p className="text-xl font-bold text-purple-600">
-                    {Math.floor(avgMonthlySales / 1000000)}억
+                  <p className="text-sm text-gray-600 mb-1">미결제금액</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {product.outstandingAmount ? `${Math.floor(product.outstandingAmount / 100000000)}억` : '정보 없음'}
                   </p>
                 </Card>
               </div>
@@ -110,15 +169,10 @@ export default function CreditCardDetailPage() {
                 <div className="flex items-end justify-between mb-3">
                   <div>
                     <p className="text-2xl font-bold text-gray-900 mb-1">
-                      {Math.floor(product.fundingCurrent / 10000000)}.
-                      {String(Math.floor((product.fundingCurrent % 10000000) / 1000000)).padStart(
-                        1,
-                        '0'
-                      )}
-                      억 원
+                      {Math.floor(product.fundingCurrent / 100000000)}억 원
                     </p>
                     <p className="text-sm text-gray-600">
-                      / {Math.floor(product.fundingGoal / 10000000)}억 원
+                      / {Math.floor(product.fundingGoal / 100000000)}억 원
                     </p>
                   </div>
                   <div className="text-right">
@@ -143,7 +197,7 @@ export default function CreditCardDetailPage() {
                       : 'border-transparent text-gray-600'
                   }`}
                 >
-                  사업자 정보
+                  상품 정보
                 </button>
                 <button
                   onClick={() => setActiveTab('investor')}
@@ -159,75 +213,64 @@ export default function CreditCardDetailPage() {
 
               {/* Tab Content */}
               {activeTab === 'info' && (
-                <div className="space-y-6">
-                  <Card className="p-6">
-                    <h3 className="font-bold text-gray-900 mb-4">사업자 정보</h3>
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-600">상호명</p>
-                          <p className="font-semibold text-gray-900">
-                            {product.merchant.businessName}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">사업자번호</p>
-                          <p className="font-semibold text-gray-900 font-mono">
-                            {product.merchant.businessRegistration}
-                          </p>
-                        </div>
+                <Card className="p-6">
+                  <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <CreditCard size={20} className="text-purple-600" />
+                    상품 정보
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-600">가맹점명</p>
+                        <p className="font-semibold text-gray-900">
+                          {product?.merchantName || '정보 없음'}
+                        </p>
                       </div>
-                      <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                        <div>
-                          <p className="text-sm text-gray-600">업태</p>
-                          <p className="font-semibold text-gray-900">
-                            {product.merchant.industry}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">설립연도</p>
-                          <p className="font-semibold text-gray-900">
-                            {product.merchant.establishedYear}년
-                          </p>
-                        </div>
+                      <div>
+                        <p className="text-sm text-gray-600">업종</p>
+                        <p className="font-semibold text-gray-900">
+                          {product?.merchantCategory || '정보 없음'}
+                        </p>
                       </div>
                     </div>
-                  </Card>
-
-                  <Card className="p-6">
-                    <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <TrendingUp size={20} className="text-purple-600" />
-                      신용카드 매출 현황 (6개월)
-                    </h3>
-                    <div className="space-y-3">
-                      {product.cardSales.map((sale) => (
-                        <div key={sale.month} className="flex items-center gap-4">
-                          <p className="w-12 text-sm font-semibold text-gray-600">
-                            {sale.month}
-                          </p>
-                          <div className="flex-1 h-8 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-purple-400 to-purple-600 flex items-center justify-end pr-3"
-                              style={{
-                                width: `${(sale.amount / Math.max(...product.cardSales.map((s) => s.amount))) * 100}%`,
-                              }}
-                            >
-                              <span className="text-white text-xs font-bold">
-                                {Math.floor(sale.amount / 1000000)}억
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                      <div>
+                        <p className="text-sm text-gray-600">미결제금액</p>
+                        <p className="font-semibold text-gray-900">
+                          {product?.outstandingAmount ? `${Math.floor(product.outstandingAmount / 100000000)}억 원` : '정보 없음'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">투자 수익률</p>
+                        <p className="font-semibold text-purple-600">
+                          {product.rate}%
+                        </p>
+                      </div>
                     </div>
-                    <div className="mt-6 p-4 bg-purple-50 rounded-lg">
-                      <p className="text-sm text-gray-600 mb-1">일평균 신용카드 매출</p>
-                      <p className="text-2xl font-bold text-purple-600">
-                        {Math.floor(estimatedDailySales / 1000000)}백만 원
-                      </p>
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                      <div>
+                        <p className="text-sm text-gray-600">투자 기간</p>
+                        <p className="font-semibold text-gray-900">
+                          {product.period}개월
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">투자자 수</p>
+                        <p className="font-semibold text-gray-900">
+                          {product.investorCount || 0}명
+                        </p>
+                      </div>
                     </div>
-                  </Card>
-                </div>
+                    {product.description && (
+                      <div className="pt-4 border-t">
+                        <p className="text-sm text-gray-600 mb-2">상품 설명</p>
+                        <p className="text-gray-700 leading-relaxed">
+                          {product.description}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
               )}
 
               {activeTab === 'investor' && (
@@ -236,62 +279,169 @@ export default function CreditCardDetailPage() {
                   <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
                     <p className="font-bold text-yellow-800">투자 위험 안내:</p>
                     <p className="text-yellow-800 text-sm">
-                      이 상품은 외상채권 상품으로, 사업자의 경영 악화 시 손실이 발생할 수 있습니다.
+                      이 상품은 신용카드 미결제금액 채권 상품으로, 발행사의 채무불이행 시 손실이 발생할 수 있습니다.
                     </p>
                   </div>
                   <div className="space-y-3 text-sm text-gray-700">
                     <p>
-                      • 신용카드 외상채권 회수율은 사업자의 신용 상태에 따라 변할 수 있습니다.
+                      • 신용카드 매출액과 미결제금액은 시장 상황에 따라 변동될 수 있습니다.
                     </p>
                     <p>
-                      • 제공된 매출 정보는 신용카드사 데이터 기준으로, 실제 매출과 차이가 있을 수 있습니다.
+                      • 가맹점의 영업 악화 시 수익성이 감소할 수 있습니다.
                     </p>
                     <p>
-                      • 계절성이나 특수 상황에 따라 매출이 급감할 수 있으므로 투자 전 충분히 검토하시기 바랍니다.
+                      • 채무불이행 시 회수에 시간이 소요될 수 있습니다.
                     </p>
                     <p>
-                      • 투자 수익은 세금 공제 후 지급됩니다.
+                      • 본 투자상품은 펀드나 보험 상품이 아니며, 예금자보호 대상이 아닙니다.
                     </p>
                   </div>
                 </Card>
               )}
             </div>
 
-            {/* Sidebar - Investment Card */}
+            {/* Right Sidebar */}
             <div className="lg:col-span-1">
-              <Card className="p-6 sticky top-24">
-                <div className="mb-6">
-                  <p className="text-sm text-gray-600 mb-1">최소 투자금</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {Math.floor(product.minInvestment / 1000000)}만 원
+              <div className="sticky top-24 space-y-4">
+                {/* Min Investment Card */}
+                <Card className="p-6 bg-gradient-to-br from-purple-50 to-white border-purple-200">
+                  <p className="text-sm text-gray-600 mb-2">최소 투자금액</p>
+                  <p className="text-3xl font-bold text-purple-600 mb-4">
+                    {Math.floor(product.minInvestment / 1000000)}백만원
                   </p>
-                </div>
-
-                <div className="mb-6 p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">예상 수익 (최소 투자 기준)</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {Math.floor((product.minInvestment * product.rate * product.period) / (100 * 12)) / 10000}만 원
+                  <p className="text-xs text-gray-500 mb-4">
+                    최소 금액 이상으로 투자 가능합니다
                   </p>
-                </div>
+                </Card>
 
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-xs text-blue-800">
-                    수익은 소득세(15.4%)가 공제되고 지급됩니다.
+                {/* Status Badge */}
+                <Card className="p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Badge className={`${
+                      product.status === 'recruiting' ? 'bg-purple-100 text-purple-700' :
+                      product.status === 'funding' ? 'bg-blue-100 text-blue-700' :
+                      product.status === 'ending-soon' ? 'bg-red-100 text-red-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {product.status === 'recruiting' ? '모집 중' :
+                       product.status === 'funding' ? '펀딩 중' :
+                       product.status === 'ending-soon' ? '곧 종료' : '종료됨'}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    투자자: <span className="font-bold text-gray-900">{product.investorCount || 0}명</span>
                   </p>
-                </div>
+                </Card>
 
-                <Button className="w-full mb-3" variant="primary">
+                {/* Action Buttons */}
+                <Button 
+                  className="w-full bg-purple-600 text-white hover:bg-purple-700 py-3 font-bold"
+                  onClick={() => router.push(`/investment/${productId}/apply`)}
+                >
                   투자하기
                 </Button>
 
-                <Button className="w-full" variant="secondary">
-                  계산기 열기
+                <Button 
+                  className="w-full bg-gray-100 text-gray-900 hover:bg-gray-200 py-3 font-bold"
+                  onClick={() => setIsFavorite(!isFavorite)}
+                >
+                  {isFavorite ? '❤️ 찜 해제' : '🤍 찜하기'}
                 </Button>
-              </Card>
+
+                {/* Additional Info */}
+                <Card className="p-4 bg-blue-50">
+                  <h4 className="font-bold text-gray-900 mb-3">이 상품의 특징</h4>
+                  <ul className="space-y-2 text-sm text-gray-700">
+                    <li className="flex gap-2">
+                      <span className="text-blue-600">✓</span>
+                      <span>안정적인 수익률</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-blue-600">✓</span>
+                      <span>투명한 정보 공개</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-blue-600">✓</span>
+                      <span>쉬운 투자 절차</span>
+                    </li>
+                  </ul>
+                </Card>
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Calculator Modal */}
+      {showCalculator && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">투자 수익 계산기</h2>
+              <button
+                onClick={() => setShowCalculator(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  투자 금액 (만원)
+                </label>
+                <input
+                  type="number"
+                  defaultValue={Math.floor(product!.minInvestment / 1000000)}
+                  min={Math.floor(product!.minInvestment / 1000000)}
+                  onChange={(e) => {
+                    const investAmount = parseInt(e.target.value) * 1000000;
+                    const expectedProfit = (investAmount * product!.rate * product!.period) / (100 * 12);
+                    (document.getElementById('expectedProfit') as HTMLElement).textContent = 
+                      `${Math.floor(expectedProfit / 10000)}만 원`;
+                    (document.getElementById('expectedProfitAfterTax') as HTMLElement).textContent = 
+                      `${Math.floor(expectedProfit * 0.846 / 10000)}만 원`;
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-600 mb-2">투자 기간: {product?.period}개월</p>
+                <p className="text-sm text-gray-600 mb-2">연 수익률: {product?.rate}%</p>
+              </div>
+
+              <div className="bg-green-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">예상 수익 (세전)</p>
+                <p id="expectedProfit" className="text-2xl font-bold text-green-600 mb-3">
+                  {Math.floor((Math.floor(product!.minInvestment / 1000000) * 1000000 * product!.rate * product!.period) / (100 * 12) / 10000)}만 원
+                </p>
+                
+                <p className="text-sm text-gray-600 mb-1">예상 수익 (세후)</p>
+                <p id="expectedProfitAfterTax" className="text-2xl font-bold text-green-600">
+                  {Math.floor((Math.floor(product!.minInvestment / 1000000) * 1000000 * product!.rate * product!.period) / (100 * 12) * 0.846 / 10000)}만 원
+                </p>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                ※ 세후 수익은 15.4% 소득세 공제 이후의 예상 금액입니다.
+              </p>
+
+              <Button
+                className="w-full"
+                variant="primary"
+                onClick={() => {
+                  setShowCalculator(false);
+                  handleInvest();
+                }}
+              >
+                투자하기
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </Layout>
   );
 }

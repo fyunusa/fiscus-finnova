@@ -29,26 +29,26 @@ export default function ResetPasswordPage() {
 
     setLoading(true);
     try {
-      // TODO: Integrate with backend API
-      // const response = await fetch('/api/auth/check-email', {
-      //   method: 'POST',
-      //   body: JSON.stringify({ email }),
-      // });
+      // Call backend API to send OTP to email
+      const response = await fetch('http://localhost:4000/api/v1/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const result = await response.json();
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock response: check if single or multiple accounts
-      const mockAccounts = [{ email, type: 'Individual' }];
-      
-      if (mockAccounts.length === 1) {
-        router.push(`/login/reset-password/new?email=${encodeURIComponent(email)}`);
-      } else {
-        router.push('/login/reset-password/multiple');
+      if (!response.ok || !result.success) {
+        setError(result.message || '이메일을 찾을 수 없습니다. 다시 확인해주세요.');
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      setError('등록된 이메일을 찾을 수 없습니다. 다시 확인해주세요.');
-    } finally {
+
+      // Redirect to OTP verification page with email as query param
+      router.push(`/login/reset-password/new?email=${encodeURIComponent(email)}`);
+    } catch (err: any) {
+      console.error('Failed to request password reset:', err);
+      setError('요청 중 오류가 발생했습니다. 다시 시도해주세요.');
       setLoading(false);
     }
   };

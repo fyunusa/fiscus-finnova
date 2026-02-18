@@ -86,43 +86,54 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      // TODO: Integrate with backend authentication API
-      // const response = await fetch('/api/auth/login', {
-      //   method: 'POST',
-      //   body: JSON.stringify({ email, password, rememberMe }),
-      // });
+      // Call backend login API
+      const response = await fetch('http://localhost:4000/api/v1/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await response.json();
 
-      // Check if it's the demo user
-      const isDemoUser = email === DEMO_USER.email && password === DEMO_USER.password;
-
-      // Mock authentication - replace with real API response
-      const isAuthenticated = isDemoUser; // Replace with actual API response
-
-      if (isAuthenticated) {
-        // Reset attempts on successful login
-        localStorage.removeItem('loginAttempts');
-        localStorage.removeItem('loginLockoutTime');
-
-        // Set auth state
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userName', email.split('@')[0]);
-
-        // Save remember me preference
-        if (rememberMe) {
-          localStorage.setItem('rememberedEmail', email);
-        } else {
-          localStorage.removeItem('rememberedEmail');
-        }
-
-        // Redirect to dashboard
-        router.push('/dashboard');
-      } else {
-        throw new Error('Invalid credentials');
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.message || 'Login failed');
       }
+
+      // Reset attempts on successful login
+      localStorage.removeItem('loginAttempts');
+      localStorage.removeItem('loginLockoutTime');
+
+      // Store authentication tokens and user information
+      const { accessToken, refreshToken, user } = result.data;
+      
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      localStorage.setItem('userId', user.id);
+      localStorage.setItem('userType', user.userType);
+      localStorage.setItem('username', user.firstName || email.split('@')[0]);
+      localStorage.setItem('userEmail', user.email);
+      
+      // Store signup completion status from backend
+      localStorage.setItem('hasVerifiedBankAccount', String(user.hasVerifiedBankAccount || false));
+      localStorage.setItem('hasKYCDocument', String(user.hasKYCDocument || false));
+      localStorage.setItem('hasTransactionPIN', String(user.hasTransactionPIN || false));
+
+      // Save remember me preference
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', email);
+      } else {
+        localStorage.removeItem('rememberedEmail');
+      }
+
+      console.log('✅ Login successful:', user);
+
+      // Redirect to dashboard
+      router.push('/dashboard');
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Login failed';
+      
       // Increment failed attempts
       const newAttempts = loginAttempts + 1;
       setLoginAttempts(newAttempts);
@@ -137,8 +148,10 @@ export default function LoginPage() {
         setError('비밀번호 오류가 5회 이상 발생했습니다. 계정이 30분간 잠금되었습니다.');
       } else {
         const attemptsLeft = 5 - newAttempts;
-        setError(`이메일 또는 비밀번호가 올바르지 않습니다. (${attemptsLeft}회 남음)`);
+        setError(`${errorMsg} (${attemptsLeft}회 남음)`);
       }
+
+      console.error('❌ Login error:', errorMsg);
     } finally {
       setLoading(false);
     }

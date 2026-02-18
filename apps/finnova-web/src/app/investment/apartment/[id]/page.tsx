@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Badge } from '@/components/ui';
-import { ChevronLeft, Heart, Share2, BarChart3 } from 'lucide-react';
+import { ChevronLeft, Heart, Share2, BarChart3, AlertCircle, Loader } from 'lucide-react';
+import * as investmentsService from '@/services/investments.service';
+import { Investment } from '@/services/investments.service';
 
 export default function ApartmentDetailPage() {
   const router = useRouter();
@@ -12,27 +14,82 @@ export default function ApartmentDetailPage() {
   const productId = params.id as string;
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'investor'>('info');
+  const [product, setProduct] = useState<Investment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string>('');
+  const [showCalculator, setShowCalculator] = useState(false);
 
-  // Mock data
-  const product = {
-    id: productId,
-    title: '강남구 아파트 담보 대출',
-    rate: 8.5,
-    period: 12,
-    fundingGoal: 100000000,
-    fundingCurrent: 75000000,
-    minInvestment: 1000000,
-    ltv: 65,
-    borrowerType: '개인',
-    status: 'funding',
-    property: {
-      address: '서울시 강남구 테헤란로 123',
-      size: '84㎡ (전용면적)',
-      buildYear: 2015,
-      kbValuation: 650000000,
-      currentLien: 300000000,
-    },
+  // Fetch investment detail
+  useEffect(() => {
+    const fetchInvestment = async () => {
+      try {
+        setIsLoading(true);
+        setError('');
+        const response = await investmentsService.getInvestmentDetail(productId);
+        
+        if (response.success && response.data) {
+          setProduct(response.data);
+          
+          // Check if user has favorited this investment
+          try {
+            const favoriteCheck = await investmentsService.isFavorited(productId);
+            setIsFavorite(favoriteCheck.data.isFavorited);
+          } catch (err) {
+            console.error('Error checking favorite status:', err);
+            // Silently fail - default to not favorited
+          }
+        } else {
+          setError('투자 상품을 불러올 수 없습니다.');
+        }
+      } catch (err: any) {
+        console.error('Error fetching investment:', err);
+        setError(err.message || '투자 상품을 불러올 수 없습니다.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (productId) {
+      fetchInvestment();
+    }
+  }, [productId]);
+
+  const handleInvest = () => {
+    router.push(`/investment/${productId}/invest`);
   };
+
+  const handleCalculator = () => {
+    setShowCalculator(true);
+  };
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Loader className="animate-spin text-blue-600 mx-auto mb-4" size={40} />
+            <p className="text-gray-600">상품 정보를 불러오는 중...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Card className="p-8 text-center">
+            <AlertCircle className="text-red-500 mx-auto mb-4" size={40} />
+            <p className="text-red-600 text-lg mb-4">{error || '상품을 찾을 수 없습니다.'}</p>
+            <Button onClick={() => router.back()} className="bg-blue-600 text-white">
+              돌아가기
+            </Button>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
 
   const fundingPercent = Math.round((product.fundingCurrent / product.fundingGoal) * 100);
 
@@ -51,7 +108,19 @@ export default function ApartmentDetailPage() {
             </button>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setIsFavorite(!isFavorite)}
+                onClick={async () => {
+                  try {
+                    if (isFavorite) {
+                      await investmentsService.removeFromFavorites(productId);
+                    } else {
+                      await investmentsService.addToFavorites(productId);
+                    }
+                    setIsFavorite(!isFavorite);
+                  } catch (err: any) {
+                    console.error('Error toggling favorite:', err);
+                    alert(err.message || '즐겨찾기 변경에 실패했습니다.');
+                  }
+                }}
                 className={`p-2 rounded-full transition ${
                   isFavorite
                     ? 'bg-red-100 text-red-600'
@@ -149,13 +218,13 @@ export default function ApartmentDetailPage() {
                       <div>
                         <p className="text-sm text-gray-600">주소</p>
                         <p className="font-semibold text-gray-900">
-                          {product.property.address}
+                          {product?.propertyAddress || '정보 없음'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">건축연도</p>
                         <p className="font-semibold text-gray-900">
-                          {product.property.buildYear}년
+                          {product?.buildYear ? `${product.buildYear}년` : '정보 없음'}
                         </p>
                       </div>
                     </div>
@@ -163,13 +232,13 @@ export default function ApartmentDetailPage() {
                       <div>
                         <p className="text-sm text-gray-600">면적</p>
                         <p className="font-semibold text-gray-900">
-                          {product.property.size}
+                          {product?.propertySize || '정보 없음'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">KB 감정가</p>
                         <p className="font-semibold text-gray-900">
-                          {Math.floor(product.property.kbValuation / 100000000)}억 원
+                          {product?.kbValuation ? `${Math.floor(product.kbValuation / 100000000)}억 원` : '정보 없음'}
                         </p>
                       </div>
                     </div>
@@ -177,13 +246,13 @@ export default function ApartmentDetailPage() {
                       <div>
                         <p className="text-sm text-gray-600">기존 저당</p>
                         <p className="font-semibold text-gray-900">
-                          {Math.floor(product.property.currentLien / 100000000)}억 원
+                          {product?.currentLien ? `${Math.floor(product.currentLien / 100000000)}억 원` : '정보 없음'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">대출금액</p>
                         <p className="font-semibold text-gray-900">
-                          {Math.floor(product.fundingGoal / 100000000)}억 원
+                          {product ? `${Math.floor(product.fundingGoal / 100000000)}억 원` : '정보 없음'}
                         </p>
                       </div>
                     </div>
@@ -224,7 +293,7 @@ export default function ApartmentDetailPage() {
                 <div className="mb-6">
                   <p className="text-sm text-gray-600 mb-1">최소 투자금</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {Math.floor(product.minInvestment / 1000000)}만 원
+                    {Math.floor(product.minInvestment / 10000)}만 원
                   </p>
                 </div>
 
@@ -241,11 +310,11 @@ export default function ApartmentDetailPage() {
                   </p>
                 </div>
 
-                <Button className="w-full mb-3" variant="primary">
+                <Button className="w-full mb-3" variant="primary" onClick={handleInvest}>
                   투자하기
                 </Button>
 
-                <Button className="w-full" variant="secondary">
+                <Button className="w-full" variant="secondary" onClick={handleCalculator}>
                   계산기 열기
                 </Button>
               </Card>
@@ -253,6 +322,77 @@ export default function ApartmentDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Calculator Modal */}
+      {showCalculator && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">투자 수익 계산기</h2>
+              <button
+                onClick={() => setShowCalculator(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  투자 금액 (만원)
+                </label>
+                <input
+                  type="number"
+                  defaultValue={Math.floor(product!.minInvestment / 1000000)}
+                  min={Math.floor(product!.minInvestment / 1000000)}
+                  onChange={(e) => {
+                    const investAmount = parseInt(e.target.value) * 10000;
+                    const expectedProfit = (investAmount * product!.rate * product!.period) / (100 * 12);
+                    (document.getElementById('expectedProfit') as HTMLElement).textContent = 
+                      `${Math.floor(expectedProfit / 10000)}만 원`;
+                    (document.getElementById('expectedProfitAfterTax') as HTMLElement).textContent = 
+                      `${Math.floor(expectedProfit * 0.846 / 10000)}만 원`;
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-600 mb-2">투자 기간: {product?.period}개월</p>
+                <p className="text-sm text-gray-600 mb-2">연 수익률: {product?.rate}%</p>
+              </div>
+
+              <div className="bg-green-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">예상 수익 (세전)</p>
+                <p id="expectedProfit" className="text-2xl font-bold text-green-600 mb-3">
+                  {Math.floor((Math.floor(product!.minInvestment / 10000) * 10000 * product!.rate * product!.period) / (100 * 12) / 10000)}만 원
+                </p>
+                
+                <p className="text-sm text-gray-600 mb-1">예상 수익 (세후)</p>
+                <p id="expectedProfitAfterTax" className="text-2xl font-bold text-green-600">
+                  {Math.floor((Math.floor(product!.minInvestment / 10000) * 10000 * product!.rate * product!.period) / (100 * 12) * 0.846 / 10000)}만 원
+                </p>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                ※ 세후 수익은 15.4% 소득세 공제 이후의 예상 금액입니다.
+              </p>
+
+              <Button
+                className="w-full"
+                variant="primary"
+                onClick={() => {
+                  setShowCalculator(false);
+                  handleInvest();
+                }}
+              >
+                투자하기
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </Layout>
   );
 }

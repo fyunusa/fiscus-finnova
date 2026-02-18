@@ -1,0 +1,16 @@
+{
+  "user": {
+    "messages": {
+      "getAllSuccess": "Users retrieved successfully",
+      "getAllFailed": "Failed to retrieve users",
+      "getByIdSuccess": "User retrieved successfully",
+      "getByIdFailed": "Failed to retrieve user",
+      "createSuccess": "User created successfully",
+      "createFailed": "Failed to create user",
+      "updateSuccess": "User updated successfully",
+      "updateFailed": "Failed to update user",
+      "deleteSuccess": "User deleted successfully",
+      "deleteFailed": "Failed to delete user"
+    }
+  }
+}

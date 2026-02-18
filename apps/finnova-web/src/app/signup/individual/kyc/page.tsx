@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Alert } from '@/components/ui';
+import { SignupFlowRedirect } from '@/components/SignupFlowRedirect';
 
 interface FileUpload {
   idFile: File | null;
@@ -63,6 +64,17 @@ export default function KYCUploadPage() {
     try {
       // Simulate file upload
       await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Mark step 8 as completed in both localStorage and sessionStorage
+      localStorage.setItem('signup_step_8_completed', 'true');
+      sessionStorage.setItem('signup_step_8_completed', 'true');
+      
+      // Optionally store file metadata
+      sessionStorage.setItem('kycFiles', JSON.stringify({
+        idFileName: files.idFile?.name,
+        selfieFileName: files.selfieFile?.name,
+      }));
+      
       router.push('/signup/individual/pin');
     } catch (err) {
       setError('파일 업로드 중 오류가 발생했습니다');
@@ -77,8 +89,9 @@ export default function KYCUploadPage() {
   };
 
   return (
-    <Layout>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
+    <SignupFlowRedirect currentStep={8}>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
         <Card className="w-full max-w-2xl">
           {/* Progress Indicator */}
           <div className="mb-8 pb-6 border-b border-gray-200">
@@ -220,5 +233,6 @@ export default function KYCUploadPage() {
         </Card>
       </div>
     </Layout>
+    </SignupFlowRedirect>
   );
 }

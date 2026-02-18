@@ -4,55 +4,91 @@ import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Card, Button, Badge, Alert, Input } from '@/components/ui';
 import Link from 'next/link';
-
-interface DataItem {
-  id: string;
-  title: string;
-  description?: string;
-  status?: string;
-  createdAt?: string;
-}
+import { Eye, AlertCircle, TrendingUp } from 'lucide-react';
+import { getUserInvestments, UserInvestment, UserInvestmentsResponse } from '@/services/investments.service';
 
 export default function MyInvestmentsPage() {
-  const [data, setData] = useState<DataItem[]>([]);
+  const [investments, setInvestments] = useState<UserInvestment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
 
   useEffect(() => {
-    // Simulated data loading
-    setTimeout(() => {
-      setData([
-        {
-          id: '1',
-          title: '샘플 항목 1',
-          description: '나의 투자 관련 샘플 데이터입니다.',
-          status: 'active',
-          createdAt: '2024-02-14',
-        },
-        {
-          id: '2',
-          title: '샘플 항목 2',
-          description: '추가 샘플 데이터입니다.',
-          status: 'pending',
-          createdAt: '2024-02-13',
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
+    fetchUserInvestments();
   }, []);
 
-  const filteredData = data.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus;
+  const fetchUserInvestments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response: UserInvestmentsResponse = await getUserInvestments();
+      
+      if (response.success && response.data) {
+        setInvestments(response.data);
+      } else {
+        setError(response.message || '투자 정보를 불러올 수 없습니다.');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '투자 정보를 불러오는 중 오류가 발생했습니다.';
+      setError(errorMessage);
+      console.error('Error fetching investments:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredInvestments = investments.filter(inv => {
+    const investmentTitle = inv.investment?.title || '';
+    const matchesSearch = investmentTitle.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = selectedStatus === 'all' || inv.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
 
   const breadcrumbItems = [
-      { label: '홈', href: '/' },
-      { label: '투자', href: '/investment' },
-      { label: '나의 투자', href: '#' },
-    ];
+    { label: '홈', href: '/' },
+    { label: '투자', href: '/investment' },
+    { label: '나의 투자', href: '#' },
+  ];
+
+  /** 
+   * Format status badge with proper styling and korean text
+   */
+  const getStatusBadge = (status: UserInvestment['status']) => {
+    const statusConfig = {
+      pending: { label: '대기중', bg: 'bg-yellow-100', text: 'text-yellow-800' },
+      confirmed: { label: '확정', bg: 'bg-blue-100', text: 'text-blue-800' },
+      completed: { label: '완료', bg: 'bg-green-100', text: 'text-green-800' },
+      failed: { label: '실패', bg: 'bg-red-100', text: 'text-red-800' },
+      cancelled: { label: '취소', bg: 'bg-gray-100', text: 'text-gray-800' },
+    };
+    const config = statusConfig[status] || statusConfig.pending;
+    
+    return (
+      <Badge className={`${config.bg} ${config.text} px-3 py-1 rounded-full text-xs font-semibold`}>
+        {config.label}
+      </Badge>
+    );
+  };
+
+  /**
+   * Format amount as million won (백만원)
+   */
+  const formatAmount = (amount: number): string => {
+    return `₩${(amount / 1000000).toFixed(2)}M`;
+  };
+
+  /**
+   * Format date as YYYY-MM-DD
+   */
+  const formatDate = (dateString: string | undefined): string => {
+    if (!dateString) return '-';
+    try {
+      return new Date(dateString).toISOString().split('T')[0];
+    } catch {
+      return dateString;
+    }
+  };
 
   return (
     <Layout>
@@ -95,6 +131,23 @@ export default function MyInvestmentsPage() {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Error Alert */}
+          {error && (
+            <Alert className="mb-6 bg-red-50 border border-red-200 p-4 rounded-lg flex items-start gap-3">
+              <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+              <div className="flex-1">
+                <h3 className="font-semibold text-red-900">오류 발생</h3>
+                <p className="text-red-800 text-sm mt-1">{error}</p>
+                <button
+                  onClick={fetchUserInvestments}
+                  className="mt-2 text-red-700 hover:text-red-900 font-medium text-sm underline"
+                >
+                  다시 시도
+                </button>
+              </div>
+            </Alert>
+          )}
+
           {/* Filters */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -104,7 +157,7 @@ export default function MyInvestmentsPage() {
                 </label>
                 <Input
                   type="text"
-                  placeholder="제목으로 검색..."
+                  placeholder="투자 상품명으로 검색..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -120,13 +173,15 @@ export default function MyInvestmentsPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
                   <option value="all">전체</option>
-                  <option value="active">활성</option>
-                  <option value="pending">대기</option>
+                  <option value="pending">대기중</option>
+                  <option value="confirmed">확정</option>
                   <option value="completed">완료</option>
+                  <option value="failed">실패</option>
+                  <option value="cancelled">취소</option>
                 </select>
               </div>
               <div className="flex items-end">
-                <Button className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md font-medium">
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium">
                   필터 적용
                 </Button>
               </div>
@@ -140,75 +195,93 @@ export default function MyInvestmentsPage() {
                 <h2 className="text-xl font-semibold text-gray-900">
                   나의 투자 목록
                 </h2>
-                <Badge className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                  총 {filteredData.length}개
+                <Badge className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+                  총 {filteredInvestments.length}개
                 </Badge>
               </div>
 
               {loading ? (
-                <div className="flex items-center justify-center h-64">
+                <div className="flex flex-col items-center justify-center h-64">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                  <span className="ml-3 text-gray-600">로딩 중...</span>
+                  <span className="ml-3 text-gray-600 mt-4">투자 정보를 불러오는 중...</span>
                 </div>
-              ) : filteredData.length > 0 ? (
+              ) : filteredInvestments.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          제목
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          투자상품명
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          설명
+                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          투자금액
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           상태
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          생성일
+                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          예상수익률
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          투자일자
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                           작업
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredData.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50">
+                      {filteredInvestments.map((investment) => (
+                        <tr key={investment.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {item.title}
+                            <div className="flex items-start gap-2">
+                              <TrendingUp className="text-blue-600 flex-shrink-0 mt-0.5" size={16} />
+                              <div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {investment.investment?.title || '상품명 없음'}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  ID: {investment.investmentId}
+                                </div>
+                              </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-gray-600 max-w-xs truncate">
-                              {item.description}
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <div className="text-sm font-bold text-gray-900">
+                              {formatAmount(investment.investmentAmount)}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {investment.investmentCount}개
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            {getStatusBadge(investment.status)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <div className="text-sm font-semibold text-green-600">
+                              {investment.expectedRate.toFixed(2)}%
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {investment.investmentPeriodMonths}개월
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                item.status === 'active'
-                                  ? 'bg-green-100 text-green-800'
-                                  : item.status === 'pending'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}
-                            >
-                              {item.status === 'active' ? '활성' : 
-                               item.status === 'pending' ? '대기' : '기타'}
-                            </Badge>
+                            <div className="text-sm text-gray-900 font-medium">
+                              {formatDate(investment.createdAt)}
+                            </div>
+                            {investment.confirmedAt && (
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                확정: {formatDate(investment.confirmedAt)}
+                              </div>
+                            )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {item.createdAt}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                            <Button className="text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded text-xs">
-                              상세
-                            </Button>
-                            <Button className="text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1 rounded text-xs">
-                              수정
-                            </Button>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <Link href={`/investment/${investment.investmentId}`}>
+                              <Button className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded text-xs font-medium transition-colors">
+                                <Eye size={14} />
+                                상세보기
+                              </Button>
+                            </Link>
                           </td>
                         </tr>
                       ))}
@@ -217,16 +290,33 @@ export default function MyInvestmentsPage() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <div className="text-gray-400 text-lg mb-2">📄</div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    데이터가 없습니다
+                  <div className="text-gray-300 text-5xl mb-4">📊</div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    {searchTerm || selectedStatus !== 'all' ? '조건에 맞는 투자가 없습니다' : '아직 투자한 상품이 없습니다'}
                   </h3>
-                  <p className="text-gray-600 mb-4">
-                    조건에 맞는 나의 투자 항목을 찾을 수 없습니다.
+                  <p className="text-gray-600 mb-6">
+                    {searchTerm || selectedStatus !== 'all' 
+                      ? '다른 검색 조건을 시도해보세요.'
+                      : '투자 상품을 둘러보고 나의 첫 투자를 시작해보세요.'}
                   </p>
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium">
-                    새로 만들기
-                  </Button>
+                  <div className="flex gap-3 justify-center">
+                    <Link href="/investment">
+                      <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium">
+                        투자상품 보기
+                      </Button>
+                    </Link>
+                    {(searchTerm || selectedStatus !== 'all') && (
+                      <Button 
+                        onClick={() => {
+                          setSearchTerm('');
+                          setSelectedStatus('all');
+                        }}
+                        className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-6 py-2 rounded-lg font-medium"
+                      >
+                        필터 초기화
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

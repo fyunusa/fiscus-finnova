@@ -1,234 +1,114 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
-import { Card, Button, Input } from '@/components/ui';
-import Link from 'next/link';
+import { Card, Button, Input, Alert } from '@/components/ui';
+import { Filter, X, DollarSign, Target, TrendingUp, Calendar, Clock, CheckCircle, Heart } from 'lucide-react';
 import {
-  TrendingUp,
-  DollarSign,
-  Target,
-  Calendar,
-  ChevronRight,
-  X,
-  Filter,
-  Clock,
-  CheckCircle,
-  Heart,
-} from 'lucide-react';
-
-interface Investment {
-  id: string;
-  productName: string;
-  investmentDate: string;
-  amount: number;
-  interestRate: number;
-  period: number;
-  status: 'active' | 'repaying' | 'completed' | 'overdue';
-  returnsToDate: number;
-}
-
-interface Payment {
-  id: string;
-  paymentDate: string;
-  productName: string;
-  principal: number;
-  interest: number;
-  taxWithheld: number;
-  netAmount: number;
-  status: 'pending' | 'completed' | 'failed';
-}
-
-interface DepositHistory {
-  id: string;
-  date: string;
-  amount: number;
-  type: 'deposit' | 'withdrawal';
-  status: 'completed' | 'pending';
-}
-
-interface FavoriteProduct {
-  id: string;
-  name: string;
-  rate: number;
-  period: number;
-  riskLevel: 'low' | 'medium' | 'high';
-  expectedReturn: number;
-  fundingProgress: number;
-}
+  getInvestmentSummary,
+  getRepaymentStatus,
+  getInvestmentHistory,
+  getFavoriteInvestments,
+  type InvestmentSummary,
+  type RepaymentStatus,
+  type InvestmentHistory,
+  type FavoriteInvestment,
+} from '@/services/dashboard.service';
+import {
+  getVirtualAccountInfo,
+  getTransactionHistory,
+  recordWithdrawal,
+  type VirtualAccountInfo,
+  type DepositHistory,
+} from '@/services/virtual-account.service';
 
 export default function InvestmentDashboardPage() {
   const [activeTab, setActiveTab] = useState<'history' | 'payments' | 'deposits' | 'favorites'>('history');
+  const [summary, setSummary] = useState<InvestmentSummary | null>(null);
+  const [repaymentStatus, setRepaymentStatus] = useState<RepaymentStatus | null>(null);
+  const [investmentHistory, setInvestmentHistory] = useState<InvestmentHistory | null>(null);
+  const [virtualAccountInfo, setVirtualAccountInfo] = useState<VirtualAccountInfo | null>(null);
+  const [depositHistory, setDepositHistory] = useState<DepositHistory | null>(null);
+  const [favoriteInvestments, setFavoriteInvestments] = useState<FavoriteInvestment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
-  const [showQuickInvestModal, setShowQuickInvestModal] = useState(false);
-  const [selectedFavorite, setSelectedFavorite] = useState<FavoriteProduct | null>(null);
+  const [successMessage, setSuccessMessage] = useState('');
   const [withdrawalAmount, setWithdrawalAmount] = useState('');
   const [showPinVerification, setShowPinVerification] = useState(false);
   const [pin, setPin] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
-  // Summary Cards Data
-  const totalInvested = 15250000;
-  const activeInvestmentsCount = 8;
-  const totalReturns = 487500;
-  const expectedMonthlyReturns = 42500;
-  const availableBalance = 2345678;
+  // Filter states
+  const [filters, setFilters] = useState({
+    status: '',
+    type: '',
+    startDate: '',
+    endDate: '',
+  });
 
-  // Investment History
-  const investments: Investment[] = [
-    {
-      id: '1',
-      productName: '강남역 아파트 담보대출',
-      investmentDate: '2024-01-15',
-      amount: 5000000,
-      interestRate: 8.5,
-      period: 12,
-      status: 'active',
-      returnsToDate: 125000,
-    },
-    {
-      id: '2',
-      productName: '신용카드 수취권 유동화',
-      investmentDate: '2024-02-01',
-      amount: 3000000,
-      interestRate: 9.2,
-      period: 6,
-      status: 'active',
-      returnsToDate: 87500,
-    },
-    {
-      id: '3',
-      productName: '중소기업 운영자금 대출',
-      investmentDate: '2024-02-10',
-      amount: 2500000,
-      interestRate: 10.5,
-      period: 12,
-      status: 'active',
-      returnsToDate: 45000,
-    },
-    {
-      id: '4',
-      productName: '서울 오피스텔 담보대출',
-      investmentDate: '2023-12-20',
-      amount: 4750000,
-      interestRate: 8.2,
-      period: 12,
-      status: 'repaying',
-      returnsToDate: 230000,
-    },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  // Payment Status
-  const upcomingPayments: Payment[] = [
-    {
-      id: '1',
-      paymentDate: '2024-03-15',
-      productName: '강남역 아파트 담보대출',
-      principal: 416667,
-      interest: 35625,
-      taxWithheld: 5478,
-      netAmount: 446814,
-      status: 'pending',
-    },
-    {
-      id: '2',
-      paymentDate: '2024-03-20',
-      productName: '신용카드 수취권 유동화',
-      principal: 500000,
-      interest: 23000,
-      taxWithheld: 3542,
-      netAmount: 519458,
-      status: 'pending',
-    },
-  ];
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [summaryResponse, repaymentResponse, historyResponse, accountResponse, transactionResponse, favoritesResponse] = await Promise.all([
+        getInvestmentSummary(),
+        getRepaymentStatus(),
+        getInvestmentHistory({
+          page: 1,
+          limit: 10,
+          ...filters,
+        }),
+        getVirtualAccountInfo(),
+        getTransactionHistory(),
+        getFavoriteInvestments(),
+      ]);
 
-  const paymentHistory: Payment[] = [
-    {
-      id: '1',
-      paymentDate: '2024-02-14',
-      productName: '서울 오피스텔 담보대출',
-      principal: 395833,
-      interest: 32500,
-      taxWithheld: 5005,
-      netAmount: 423328,
-      status: 'completed',
-    },
-    {
-      id: '2',
-      paymentDate: '2024-02-01',
-      productName: '강남역 아파트 담보대출',
-      principal: 416667,
-      interest: 35625,
-      taxWithheld: 5478,
-      netAmount: 446814,
-      status: 'completed',
-    },
-  ];
+      console.log('Summary:', summaryResponse);
+      console.log('Repayment:', repaymentResponse);
+      console.log('History:', historyResponse);
+      console.log('Account:', accountResponse);
+      console.log('Transactions:', transactionResponse);
+      console.log('Favorites:', favoritesResponse);
 
-  // Deposit History
-  const depositHistory: DepositHistory[] = [
-    {
-      id: '1',
-      date: '2024-02-10',
-      amount: 1000000,
-      type: 'deposit',
-      status: 'completed',
-    },
-    {
-      id: '2',
-      date: '2024-02-05',
-      amount: 500000,
-      type: 'withdrawal',
-      status: 'completed',
-    },
-    {
-      id: '3',
-      date: '2024-01-28',
-      amount: 2000000,
-      type: 'deposit',
-      status: 'completed',
-    },
-  ];
+      setSummary(summaryResponse.data);
+      setRepaymentStatus(repaymentResponse.data);
+      setInvestmentHistory(historyResponse.data);
+      setVirtualAccountInfo(accountResponse.data);
+      setDepositHistory(transactionResponse.data);
+      setFavoriteInvestments(favoritesResponse.data || []);
+      
+      console.log('State set successfully');
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Favorite Products
-  const favoriteProducts: FavoriteProduct[] = [
-    {
-      id: '1',
-      name: '판교 오피스 담보대출',
-      rate: 8.7,
-      period: 12,
-      riskLevel: 'low',
-      expectedReturn: 870000,
-      fundingProgress: 78,
-    },
-    {
-      id: '2',
-      name: '이커머스 매출채권 유동화',
-      rate: 9.5,
-      period: 6,
-      riskLevel: 'medium',
-      expectedReturn: 475000,
-      fundingProgress: 92,
-    },
-    {
-      id: '3',
-      name: '카페 프랜차이즈 운영자금',
-      rate: 11.2,
-      period: 12,
-      riskLevel: 'high',
-      expectedReturn: 1120000,
-      fundingProgress: 45,
-    },
-  ];
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const applyFilters = async () => {
+    await fetchData();
+    setShowFilterModal(false);
+  };
 
   const statusBadge = (status: string) => {
     const statusConfig: Record<string, { color: string; label: string }> = {
-      active: { color: 'bg-blue-100 text-blue-800', label: '진행중' },
-      repaying: { color: 'bg-amber-100 text-amber-800', label: '상환중' },
+      pending: { color: 'bg-yellow-100 text-yellow-800', label: '예정' },
+      confirmed: { color: 'bg-blue-100 text-blue-800', label: '진행중' },
       completed: { color: 'bg-green-100 text-green-800', label: '완료' },
       overdue: { color: 'bg-red-100 text-red-800', label: '연체' },
-      pending: { color: 'bg-gray-100 text-gray-800', label: '예정' },
     };
     const config = statusConfig[status] || statusConfig.pending;
     return (
@@ -238,37 +118,20 @@ export default function InvestmentDashboardPage() {
     );
   };
 
-  const riskBadge = (level: string) => {
-    const riskConfig: Record<string, { color: string; label: string }> = {
-      low: { color: 'bg-green-100 text-green-800', label: '저위험' },
-      medium: { color: 'bg-yellow-100 text-yellow-800', label: '중위험' },
-      high: { color: 'bg-red-100 text-red-800', label: '고위험' },
-    };
-    const config = riskConfig[level] || riskConfig.medium;
+  if (loading) {
     return (
-      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${config.color}`}>
-        {config.label}
-      </span>
+      <Layout>
+        <div className="min-h-screen bg-gray-50 p-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <p className="mt-4 text-gray-600">Loading dashboard...</p>
+            </div>
+          </div>
+        </div>
+      </Layout>
     );
-  };
-
-  const handleQuickInvest = (product: FavoriteProduct) => {
-    setSelectedFavorite(product);
-    setShowQuickInvestModal(true);
-  };
-
-  const handleWithdrawal = () => {
-    if (withdrawalAmount && pin.length === 4) {
-      setSuccessMessage('출금 요청이 완료되었습니다. 1-2 영업일 내 처리됩니다.');
-      setTimeout(() => {
-        setShowWithdrawalModal(false);
-        setWithdrawalAmount('');
-        setPin('');
-        setShowPinVerification(false);
-        setSuccessMessage('');
-      }, 2000);
-    }
-  };
+  }
 
   return (
     <Layout>
@@ -280,6 +143,13 @@ export default function InvestmentDashboardPage() {
             <button onClick={() => setSuccessMessage('')}>
               <X size={20} />
             </button>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-800">{error}</p>
           </div>
         )}
 
@@ -296,7 +166,7 @@ export default function InvestmentDashboardPage() {
               <span className="text-gray-700 font-medium">총 투자액</span>
               <DollarSign className="text-blue-600" size={24} />
             </div>
-            <p className="text-2xl font-bold text-gray-900">₩{(totalInvested / 1000000).toFixed(1)}M</p>
+            <p className="text-2xl font-bold text-gray-900">₩{summary ? (summary.totalInvestments * 10000).toLocaleString() : '—'}</p>
           </Card>
 
           <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100">
@@ -304,7 +174,7 @@ export default function InvestmentDashboardPage() {
               <span className="text-gray-700 font-medium">진행 중 투자</span>
               <Target className="text-purple-600" size={24} />
             </div>
-            <p className="text-2xl font-bold text-gray-900">{activeInvestmentsCount}개</p>
+            <p className="text-2xl font-bold text-gray-900">{summary?.investmentsInProgress || 0}개</p>
           </Card>
 
           <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100">
@@ -312,7 +182,7 @@ export default function InvestmentDashboardPage() {
               <span className="text-gray-700 font-medium">누적 수익</span>
               <TrendingUp className="text-green-600" size={24} />
             </div>
-            <p className="text-2xl font-bold text-gray-900">₩{(totalReturns / 1000).toFixed(0)}K</p>
+            <p className="text-2xl font-bold text-gray-900">₩{summary ? (summary.totalEarnings * 10000).toLocaleString() : '—'}</p>
           </Card>
 
           <Card className="p-6 bg-gradient-to-br from-orange-50 to-orange-100">
@@ -320,7 +190,7 @@ export default function InvestmentDashboardPage() {
               <span className="text-gray-700 font-medium">예상 월수익</span>
               <Calendar className="text-orange-600" size={24} />
             </div>
-            <p className="text-2xl font-bold text-gray-900">₩{(expectedMonthlyReturns / 1000).toFixed(1)}K</p>
+            <p className="text-2xl font-bold text-gray-900">₩{summary ? (summary.estimatedMonthlyProfit * 10000).toLocaleString() : '—'}</p>
           </Card>
         </div>
 
@@ -372,7 +242,7 @@ export default function InvestmentDashboardPage() {
 
         {/* Tab Content */}
 
-        {/* Investment History Tab (VDS_1T) */}
+        {/* Investment History Tab */}
         {activeTab === 'history' && (
           <div>
             <div className="mb-6 flex gap-4">
@@ -391,36 +261,42 @@ export default function InvestmentDashboardPage() {
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-6 py-4 text-left font-semibold text-gray-900">상품명</th>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-900">투자 일자</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900">유형</th>
                       <th className="px-6 py-4 text-right font-semibold text-gray-900">투자액</th>
                       <th className="px-6 py-4 text-right font-semibold text-gray-900">이율</th>
-                      <th className="px-6 py-4 text-right font-semibold text-gray-900">기간</th>
                       <th className="px-6 py-4 text-left font-semibold text-gray-900">상태</th>
                       <th className="px-6 py-4 text-right font-semibold text-gray-900">수익</th>
-                      <th className="px-6 py-4 text-center font-semibold text-gray-900">상세</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {investments.map((inv) => (
-                      <tr key={inv.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="px-6 py-4 text-gray-900 font-medium">{inv.productName}</td>
-                        <td className="px-6 py-4 text-gray-600">{inv.investmentDate}</td>
-                        <td className="px-6 py-4 text-right text-gray-900 font-medium">
-                          ₩{(inv.amount / 1000000).toFixed(1)}M
-                        </td>
-                        <td className="px-6 py-4 text-right text-gray-900">{inv.interestRate.toFixed(1)}%</td>
-                        <td className="px-6 py-4 text-right text-gray-900">{inv.period}개월</td>
-                        <td className="px-6 py-4">{statusBadge(inv.status)}</td>
-                        <td className="px-6 py-4 text-right text-green-600 font-medium">
-                          ₩{(inv.returnsToDate / 1000).toFixed(0)}K
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <Link href={`/dashboard/investments/${inv.id}`}>
-                            <ChevronRight size={18} className="text-blue-600" />
-                          </Link>
+                    {loading ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500">로드 중...</td>
+                      </tr>
+                    ) : investmentHistory?.items && investmentHistory.items.length > 0 ? (
+                      investmentHistory.items.map((item) => (
+                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="px-6 py-4 font-medium text-gray-900">{item.investmentTitle}</td>
+                          <td className="px-6 py-4 text-gray-600 text-xs uppercase">{item.type}</td>
+                          <td className="px-6 py-4 text-right text-gray-900">
+                            ₩{Number(item.amount).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-right text-gray-900">
+                            {Number(item.rate ?? item.expectedRate ?? 0).toFixed(1)}%
+                          </td>
+                          <td className="px-6 py-4">{statusBadge(item.status)}</td>
+                          <td className="px-6 py-4 text-right font-semibold text-green-600">
+                            ₩{Number(item.actualEarnings ? item.actualEarnings : item.expectedEarnings).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                          투자 내역이 없습니다
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -428,7 +304,7 @@ export default function InvestmentDashboardPage() {
           </div>
         )}
 
-        {/* Payment Status Tab (VDS_2T) */}
+        {/* Payment Status Tab */}
         {activeTab === 'payments' && (
           <div className="space-y-8">
             {/* Upcoming Payments */}
@@ -442,35 +318,41 @@ export default function InvestmentDashboardPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-900">상환 예정일</th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-900">상환일</th>
                         <th className="px-6 py-4 text-left font-semibold text-gray-900">상품명</th>
-                        <th className="px-6 py-4 text-right font-semibold text-gray-900">원금</th>
-                        <th className="px-6 py-4 text-right font-semibold text-gray-900">이자</th>
-                        <th className="px-6 py-4 text-right font-semibold text-gray-900">세금</th>
-                        <th className="px-6 py-4 text-right font-semibold text-gray-900">실수령액</th>
+                        <th className="px-6 py-4 text-right font-semibold text-gray-900">투자액</th>
+                        <th className="px-6 py-4 text-right font-semibold text-gray-900">예정 상환액</th>
+                        <th className="px-6 py-4 text-right font-semibold text-gray-900">이율</th>
                         <th className="px-6 py-4 text-left font-semibold text-gray-900">상태</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {upcomingPayments.map((payment) => (
-                        <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-6 py-4 text-gray-900 font-medium">{payment.paymentDate}</td>
-                          <td className="px-6 py-4 text-gray-600">{payment.productName}</td>
-                          <td className="px-6 py-4 text-right text-gray-900">
-                            ₩{(payment.principal / 1000).toFixed(0)}K
+                      {repaymentStatus?.scheduledPayments && repaymentStatus.scheduledPayments.length > 0 ? (
+                        repaymentStatus.scheduledPayments.map((payment) => (
+                          <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-6 py-4 font-medium text-gray-900">
+                              {new Date(payment.dueDate).toLocaleDateString('ko-KR')}
+                            </td>
+                            <td className="px-6 py-4 text-gray-600">{payment.investmentTitle}</td>
+                            <td className="px-6 py-4 text-right text-gray-900">
+                              ₩{Number(payment.investmentAmount).toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 text-right text-gray-900 font-semibold">
+                              ₩{Number(payment.expectedAmount).toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 text-right text-gray-900">
+                              {Number(payment.rate ?? 0).toFixed(1)}%
+                            </td>
+                            <td className="px-6 py-4">{statusBadge(payment.status)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                            예정된 상환이 없습니다
                           </td>
-                          <td className="px-6 py-4 text-right text-gray-900">
-                            ₩{(payment.interest / 1000).toFixed(0)}K
-                          </td>
-                          <td className="px-6 py-4 text-right text-red-600">
-                            -₩{(payment.taxWithheld / 1000).toFixed(0)}K
-                          </td>
-                          <td className="px-6 py-4 text-right text-green-600 font-medium">
-                            ₩{(payment.netAmount / 1000).toFixed(0)}K
-                          </td>
-                          <td className="px-6 py-4">{statusBadge(payment.status)}</td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -488,35 +370,41 @@ export default function InvestmentDashboardPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-900">상환 일자</th>
+                        <th className="px-6 py-4 text-left font-semibold text-gray-900">상환일</th>
                         <th className="px-6 py-4 text-left font-semibold text-gray-900">상품명</th>
-                        <th className="px-6 py-4 text-right font-semibold text-gray-900">원금</th>
-                        <th className="px-6 py-4 text-right font-semibold text-gray-900">이자</th>
-                        <th className="px-6 py-4 text-right font-semibold text-gray-900">세금</th>
-                        <th className="px-6 py-4 text-right font-semibold text-gray-900">실수령액</th>
+                        <th className="px-6 py-4 text-right font-semibold text-gray-900">투자액</th>
+                        <th className="px-6 py-4 text-right font-semibold text-gray-900">상환액</th>
+                        <th className="px-6 py-4 text-right font-semibold text-gray-900">이율</th>
                         <th className="px-6 py-4 text-left font-semibold text-gray-900">상태</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {paymentHistory.map((payment) => (
-                        <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-6 py-4 text-gray-900 font-medium">{payment.paymentDate}</td>
-                          <td className="px-6 py-4 text-gray-600">{payment.productName}</td>
-                          <td className="px-6 py-4 text-right text-gray-900">
-                            ₩{(payment.principal / 1000).toFixed(0)}K
+                      {repaymentStatus?.repaymentHistory && repaymentStatus.repaymentHistory.length > 0 ? (
+                        repaymentStatus.repaymentHistory.map((history) => (
+                          <tr key={history.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-6 py-4 font-medium text-gray-900">
+                              {new Date(history.repaymentDate).toLocaleDateString('ko-KR')}
+                            </td>
+                            <td className="px-6 py-4 text-gray-600">{history.investmentTitle}</td>
+                            <td className="px-6 py-4 text-right text-gray-900">
+                              ₩{Number(history.investmentAmount).toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 text-right text-green-600 font-semibold">
+                              ₩{Number(history.amount).toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 text-right text-gray-900">
+                              {Number(history.rate ?? 0).toFixed(1)}%
+                            </td>
+                            <td className="px-6 py-4">{statusBadge(history.status)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                            상환 내역이 없습니다
                           </td>
-                          <td className="px-6 py-4 text-right text-gray-900">
-                            ₩{(payment.interest / 1000).toFixed(0)}K
-                          </td>
-                          <td className="px-6 py-4 text-right text-red-600">
-                            -₩{(payment.taxWithheld / 1000).toFixed(0)}K
-                          </td>
-                          <td className="px-6 py-4 text-right text-green-600 font-medium">
-                            ₩{(payment.netAmount / 1000).toFixed(0)}K
-                          </td>
-                          <td className="px-6 py-4">{statusBadge(payment.status)}</td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -525,225 +413,183 @@ export default function InvestmentDashboardPage() {
           </div>
         )}
 
-        {/* Deposit Management Tab (VDS_3T) */}
+        {/* Deposit Management Tab */}
         {activeTab === 'deposits' && (
-          <div className="space-y-6">
-            {/* Balance Display */}
-            <Card className="p-8 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-              <p className="text-blue-100 mb-2">가용 잔액</p>
-              <h2 className="text-4xl font-bold mb-8">₩{(availableBalance / 1000000).toFixed(2)}M</h2>
+        <div className="space-y-6">
+          {/* Balance Display */}
+          {virtualAccountInfo && (
+          <Card className="p-8 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <p className="text-blue-100 mb-2">가용 잔액</p>
+            <h2 className="text-4xl font-bold mb-8">₩{(virtualAccountInfo.availableBalance / 1000000).toFixed(2)}M</h2>
 
-              <div className="grid grid-cols-2 gap-4 mb-8">
-                <div>
-                  <p className="text-blue-100 text-sm mb-2">입금 계좌</p>
-                  <p className="font-mono text-lg">1002-123-456789</p>
-                  <p className="text-blue-100 text-sm mt-2">신한은행</p>
-                </div>
-                <div>
-                  <p className="text-blue-100 text-sm mb-2">예금주</p>
-                  <p className="font-semibold text-lg">김철수</p>
-                </div>
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div>
+                <p className="text-blue-100 text-sm mb-2">입금 계좌</p>
+                <p className="font-mono text-lg">{virtualAccountInfo.accountNumber}</p>
+                <p className="text-blue-100 text-sm mt-2">{virtualAccountInfo.bankName || '가상계좌'}</p>
               </div>
-
-              <div className="flex gap-4">
-                <Button
-                  onClick={() => {
-                    navigator.clipboard.writeText('1002-123-456789');
-                    setSuccessMessage('계좌 번호가 복사되었습니다.');
-                    setTimeout(() => setSuccessMessage(''), 2000);
-                  }}
-                  className="flex-1 bg-white text-blue-600 hover:bg-blue-50 font-semibold"
-                >
-                  계좌 복사
-                </Button>
-                <Button
-                  onClick={() => setShowWithdrawalModal(true)}
-                  className="flex-1 bg-white text-blue-600 hover:bg-blue-50 font-semibold"
-                >
-                  출금
-                </Button>
+              <div>
+                <p className="text-blue-100 text-sm mb-2">계좌명</p>
+                <p className="font-semibold text-lg">{virtualAccountInfo.accountName}</p>
               </div>
-            </Card>
-
-            {/* Deposit History */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">입출금 내역</h3>
-              <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-900">일자</th>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-900">유형</th>
-                        <th className="px-6 py-4 text-right font-semibold text-gray-900">금액</th>
-                        <th className="px-6 py-4 text-left font-semibold text-gray-900">상태</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {depositHistory.map((item) => (
-                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="px-6 py-4 text-gray-900 font-medium">{item.date}</td>
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                                item.type === 'deposit'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}
-                            >
-                              {item.type === 'deposit' ? '입금' : '출금'}
-                            </span>
-                          </td>
-                          <td
-                            className={`px-6 py-4 text-right font-semibold ${
-                              item.type === 'deposit' ? 'text-green-600' : 'text-red-600'
-                            }`}
-                          >
-                            {item.type === 'deposit' ? '+' : '-'}₩{(item.amount / 1000000).toFixed(1)}M
-                          </td>
-                          <td className="px-6 py-4">{statusBadge(item.status)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {/* Favorites Tab (VDS_4T) */}
-        {activeTab === 'favorites' && (
-          <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {favoriteProducts.map((product) => (
-                <Card key={product.id} className="p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-start justify-between mb-4">
-                    <h3 className="font-semibold text-gray-900 flex-1">{product.name}</h3>
-                    <Heart size={20} className="text-red-500 fill-red-500" />
-                  </div>
-
-                  <div className="space-y-3 mb-6">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 text-sm">연 이율</span>
-                      <span className="font-semibold text-blue-600">{product.rate.toFixed(1)}%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 text-sm">투자 기간</span>
-                      <span className="font-semibold text-gray-900">{product.period}개월</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 text-sm">위험도</span>
-                      {riskBadge(product.riskLevel)}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 text-sm">예상 수익</span>
-                      <span className="font-semibold text-green-600">
-                        ₩{(product.expectedReturn / 1000).toFixed(0)}K
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mb-6">
-                    <div className="flex justify-between items-center text-xs text-gray-600 mb-2">
-                      <span>펀딩 진행률</span>
-                      <span>{product.fundingProgress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full"
-                        style={{ width: `${product.fundingProgress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={() => handleQuickInvest(product)}
-                    className="w-full bg-blue-600 text-white hover:bg-blue-700 font-semibold"
-                  >
-                    빠른 투자
-                  </Button>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Filter Modal (VDS_1T_2P) */}
-      {showFilterModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-md">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">투자 내역 필터</h2>
-              <button onClick={() => setShowFilterModal(false)}>
-                <X size={24} className="text-gray-600" />
-              </button>
             </div>
 
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">기간</label>
-                <div className="flex gap-2">
-                  <Input type="date" placeholder="시작일" className="flex-1" />
-                  <Input type="date" placeholder="종료일" className="flex-1" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">상태</label>
-                <div className="space-y-2">
-                  {['진행중', '상환중', '완료', '연체'].map((status) => (
-                    <label key={status} className="flex items-center">
-                      <input type="checkbox" className="rounded mr-2" />
-                      <span className="text-sm text-gray-700">{status}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">상품 유형</label>
-                <div className="space-y-2">
-                  {['아파트', '신용카드', '중소기업'].map((type) => (
-                    <label key={type} className="flex items-center">
-                      <input type="checkbox" className="rounded mr-2" />
-                      <span className="text-sm text-gray-700">{type}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">금액 범위</label>
-                <div className="flex gap-2">
-                  <Input type="number" placeholder="최소" className="flex-1" />
-                  <Input type="number" placeholder="최대" className="flex-1" />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button onClick={() => setShowFilterModal(false)} className="flex-1 bg-gray-100 text-gray-900">
-                  닫기
-                </Button>
-                <Button
-                  onClick={() => {
-                    setSuccessMessage('필터가 적용되었습니다.');
-                    setShowFilterModal(false);
-                    setTimeout(() => setSuccessMessage(''), 2000);
-                  }}
-                  className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  필터 적용
-                </Button>
-              </div>
+            <div className="flex gap-4">
+              <Button
+                onClick={() => {
+                  navigator.clipboard.writeText(virtualAccountInfo.accountNumber);
+                  setSuccessMessage('계좌 번호가 복사되었습니다.');
+                  setTimeout(() => setSuccessMessage(''), 2000);
+                }}
+                className="flex-1 bg-white text-blue-600 hover:bg-blue-50 font-semibold"
+              >
+                계좌 복사
+              </Button>
+              <Button
+                onClick={() => setShowWithdrawalModal(true)}
+                className="flex-1 bg-white text-blue-600 hover:bg-blue-50 font-semibold"
+              >
+                출금
+              </Button>
             </div>
           </Card>
+          )}
+
+          {/* Deposit History */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">입출금 내역</h3>
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900">일자</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900">유형</th>
+                      <th className="px-6 py-4 text-right font-semibold text-gray-900">금액</th>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-900">상태</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {depositHistory && depositHistory.items.map((item) => (
+                      <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-6 py-4 text-gray-900 font-medium">{item.date}</td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                              item.type === 'deposit'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {item.type === 'deposit' ? '입금' : '출금'}
+                          </span>
+                        </td>
+                        <td
+                          className={`px-6 py-4 text-right font-semibold ${
+                            item.type === 'deposit' ? 'text-green-600' : 'text-red-600'
+                          }`}
+                        >
+                          {item.type === 'deposit' ? '+' : '-'}₩{(item.amount / 1000000).toFixed(1)}M
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                            item.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {item.status === 'completed' ? '완료' : item.status === 'pending' ? '진행중' : '실패'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
         </div>
       )}
 
-      {/* Withdrawal Modal (VDS_3T_1P) */}
-      {showWithdrawalModal && (
+      {/* Favorites Tab */}
+      {activeTab === 'favorites' && (
+        <div>
+          {loading ? (
+            <Card className="p-12 text-center">
+              <p className="text-gray-600">로드 중...</p>
+            </Card>
+          ) : favoriteInvestments && favoriteInvestments.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {favoriteInvestments.map((product) => (
+                <Card key={product.id} className="p-6 hover:shadow-lg transition-shadow">
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="font-semibold text-gray-900 flex-1">{product.title}</h3>
+                  <Heart size={20} className="text-red-500 fill-red-500" />
+                </div>
+
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-sm">연 이율</span>
+                    <span className="font-semibold text-blue-600">{Number(product.rate).toFixed(1)}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-sm">투자 기간</span>
+                    <span className="font-semibold text-gray-900">{product.period}개월</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-sm">위험도</span>
+                    <span
+                      className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                        product.riskLevel === 'low'
+                          ? 'bg-green-100 text-green-800'
+                          : product.riskLevel === 'medium'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}
+                    >
+                      {product.riskLevel === 'low' ? '저위험' : product.riskLevel === 'medium' ? '중위험' : '고위험'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-sm">모금액</span>
+                    <span className="font-semibold text-green-600">
+                      ₩{Number(product.fundingCurrent).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <div className="flex justify-between items-center text-xs text-gray-600 mb-2">
+                    <span>펀딩 진행률</span>
+                    <span>{Math.min(Number(product.fundingPercent), 100).toFixed(0)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full"
+                      style={{ width: `${Math.min(Math.max(0, Number(product.fundingPercent)), 100)}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={() => setSuccessMessage('투자 페이지로 이동합니다.')}
+                  className="w-full bg-blue-600 text-white hover:bg-blue-700 font-semibold"
+                >
+                  투자하기
+                </Button>
+              </Card>
+            ))}
+            </div>
+          ) : (
+            <Card className="p-12 text-center">
+              <p className="text-gray-500 text-lg">관심상품이 없습니다</p>
+              <p className="text-gray-400 text-sm mt-2">다양한 투자 상품을 보며 관심상품으로 등록해보세요</p>
+            </Card>
+          )}
+        </div>
+      )}
+
+        {/* Withdrawal Modal */}
+        {showWithdrawalModal && virtualAccountInfo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
@@ -756,7 +602,7 @@ export default function InvestmentDashboardPage() {
             <div className="p-6 space-y-4">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600">가용 잔액</p>
-                <p className="text-2xl font-bold text-blue-600">₩{(availableBalance / 1000000).toFixed(2)}M</p>
+                <p className="text-2xl font-bold text-blue-600">₩{(virtualAccountInfo.availableBalance / 1000000).toFixed(2)}M</p>
               </div>
 
               {!showPinVerification ? (
@@ -773,16 +619,16 @@ export default function InvestmentDashboardPage() {
                   </div>
 
                   <Button
-                    onClick={() => setWithdrawalAmount(availableBalance.toString())}
+                    onClick={() => setWithdrawalAmount(virtualAccountInfo.availableBalance.toString())}
                     className="w-full bg-gray-100 text-gray-900 mb-2"
                   >
                     전액
                   </Button>
 
                   <div className="bg-gray-50 p-4 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">출금 계좌</p>
-                    <p className="font-mono text-gray-900">국민은행 123-456-789012</p>
-                    <p className="text-sm text-gray-600 mt-2">예금주: 김철수</p>
+                    <p className="text-sm text-gray-600 mb-1">가상 계좌</p>
+                    <p className="font-mono text-gray-900">{virtualAccountInfo.accountNumber}</p>
+                    <p className="text-sm text-gray-600 mt-2">{virtualAccountInfo.accountName}</p>
                   </div>
 
                   <p className="text-xs text-gray-500 italic">처리 기간: 1-2 영업일</p>
@@ -829,7 +675,31 @@ export default function InvestmentDashboardPage() {
                       뒤로
                     </Button>
                     <Button
-                      onClick={handleWithdrawal}
+                      onClick={async () => {
+                        if (pin.length === 4) {
+                          try {
+                            const result = await recordWithdrawal(
+                              parseFloat(withdrawalAmount),
+                              pin,
+                              '출금'
+                            );
+                            if (result.success) {
+                              setSuccessMessage('출금 요청이 완료되었습니다. 1-2 영업일 내 처리됩니다.');
+                              setTimeout(() => {
+                                setShowWithdrawalModal(false);
+                                setWithdrawalAmount('');
+                                setPin('');
+                                setShowPinVerification(false);
+                                setSuccessMessage('');
+                                fetchData();
+                              }, 2000);
+                            }
+                          } catch (error) {
+                            console.error('출금 요청 실패:', error);
+                            setError('출금 요청 중 오류가 발생했습니다.');
+                          }
+                        }
+                      }}
                       className="flex-1 bg-green-600 text-white hover:bg-green-700"
                       disabled={pin.length !== 4}
                     >
@@ -842,76 +712,81 @@ export default function InvestmentDashboardPage() {
           </Card>
         </div>
       )}
-
-      {/* Quick Invest Modal (VDS_4T_1P) */}
-      {showQuickInvestModal && selectedFavorite && (
+      {showFilterModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">빠른 투자</h2>
-              <button onClick={() => setShowQuickInvestModal(false)}>
+              <h2 className="text-xl font-semibold text-gray-900">투자 내역 필터</h2>
+              <button onClick={() => setShowFilterModal(false)}>
                 <X size={24} className="text-gray-600" />
               </button>
             </div>
 
             <div className="p-6 space-y-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">상품명</p>
-                <p className="font-semibold text-gray-900">{selectedFavorite.name}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-600 mb-1">연 이율</p>
-                  <p className="font-bold text-lg text-blue-600">{selectedFavorite.rate.toFixed(1)}%</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-600 mb-1">투자 기간</p>
-                  <p className="font-bold text-lg text-gray-900">{selectedFavorite.period}개월</p>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">상태</label>
+                <select
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-gray-900"
+                >
+                  <option value="">모든 상태</option>
+                  <option value="pending">예정</option>
+                  <option value="confirmed">진행중</option>
+                  <option value="completed">완료</option>
+                </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">투자액</label>
-                <Input type="number" placeholder="금액 입력" className="w-full" />
-              </div>
-
-              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                <p className="text-sm text-gray-700">
-                  ⚠️ 이 투자상품은 손실 위험이 있습니다. 투자 전 충분히 검토하세요.
-                </p>
+                <label className="block text-sm font-medium text-gray-900 mb-2">유형</label>
+                <select
+                  value={filters.type}
+                  onChange={(e) => handleFilterChange('type', e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg text-gray-900"
+                >
+                  <option value="">모든 유형</option>
+                  <option value="APARTMENT">아파트</option>
+                  <option value="CREDIT_CARD">신용카드</option>
+                  <option value="BUSINESS_LOAN">사업자금</option>
+                </select>
               </div>
 
               <div>
-                <label className="flex items-center">
-                  <input type="checkbox" className="rounded mr-2" />
-                  <span className="text-sm text-gray-700">위험 공시에 동의합니다</span>
-                </label>
+                <label className="block text-sm font-medium text-gray-900 mb-2">시작일</label>
+                <Input
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">종료일</label>
+                <Input
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                  className="w-full"
+                />
               </div>
 
               <div className="flex gap-3 pt-4">
-                <Button
-                  onClick={() => setShowQuickInvestModal(false)}
-                  className="flex-1 bg-gray-100 text-gray-900"
-                >
-                  취소
+                <Button onClick={() => setShowFilterModal(false)} className="flex-1 bg-gray-100 text-gray-900">
+                  닫기
                 </Button>
                 <Button
-                  onClick={() => {
-                    setSuccessMessage('투자가 완료되었습니다.');
-                    setShowQuickInvestModal(false);
-                    setSelectedFavorite(null);
-                    setTimeout(() => setSuccessMessage(''), 2000);
-                  }}
+                  onClick={applyFilters}
                   className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
                 >
-                  투자
+                  필터 적용
                 </Button>
               </div>
             </div>
           </Card>
         </div>
       )}
+      </div>
     </Layout>
   );
 }

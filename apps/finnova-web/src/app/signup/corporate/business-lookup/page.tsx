@@ -9,10 +9,9 @@ import { Search, Loader } from 'lucide-react';
 interface BusinessInfo {
   businessNumber: string;
   companyName: string;
-  representative: string;
-  businessType: string;
-  startDate: string;
   status: string;
+  address: string;
+  phone?: string;
 }
 
 export default function CorporateBusinessLookupPage() {
@@ -53,23 +52,32 @@ export default function CorporateBusinessLookupPage() {
     setSearched(true);
 
     try {
-      // 실제로는 NTS API 호출
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // 데모: 특정 번호만 성공
-      if (cleanNumber === '1234567890') {
-        setSearchResults({
-          businessNumber: businessNumber,
+      // Call backend NTS API endpoint
+      const response = await fetch('http://localhost:4000/api/v1/auth/corporate/lookup-business', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessRegistrationNumber: businessNumber,
           companyName: companyName,
-          representative: '김철수',
-          businessType: '금융·보험',
-          startDate: '2020-01-15',
-          status: '계속사업장',
-        });
-      } else {
-        setError('등록되지 않은 사업자등록번호입니다. (데모: 123-45-67890)');
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setError(data.message || '조회에 실패했습니다. 다시 시도해주세요.');
         setSearchResults(null);
+        return;
       }
+
+      // Map API response to frontend format
+      setSearchResults({
+        businessNumber: businessNumber,
+        companyName: data.data.name,
+        status: data.data.status === 'active' ? '계속사업장' : '폐업',
+        address: data.data.address || '',
+        phone: data.data.phone,
+      });
     } catch (err) {
       setError('조회에 실패했습니다. 다시 시도해주세요.');
       setSearchResults(null);
@@ -83,8 +91,14 @@ export default function CorporateBusinessLookupPage() {
 
     setLoading(true);
     try {
-      // 실제로는 API 호출
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Store business info in session for final submission
+      sessionStorage.setItem('businessName', searchResults.companyName);
+      sessionStorage.setItem('businessRegistrationNumber', searchResults.businessNumber.replace(/\D/g, ''));
+      sessionStorage.setItem('businessAddress', searchResults.address);
+      if (searchResults.phone) {
+        sessionStorage.setItem('businessPhone', searchResults.phone);
+      }
+      
       router.push('/signup/corporate/info');
     } catch (err) {
       setError('처리 중 오류가 발생했습니다.');
@@ -102,7 +116,7 @@ export default function CorporateBusinessLookupPage() {
               사업자 정보 조회
             </h1>
             <p className="text-gray-600">
-              3 / 11 단계
+              3 / 5 단계
             </p>
           </div>
 
@@ -181,25 +195,19 @@ export default function CorporateBusinessLookupPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-600">대표자</p>
+                    <p className="text-xs text-gray-600">주소</p>
                     <p className="font-semibold text-gray-900">
-                      {searchResults.representative}
+                      {searchResults.address}
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 pt-2">
+                  {searchResults.phone && (
                     <div>
-                      <p className="text-xs text-gray-600">업종</p>
-                      <p className="text-sm text-gray-900">
-                        {searchResults.businessType}
+                      <p className="text-xs text-gray-600">대표전화</p>
+                      <p className="font-semibold text-gray-900">
+                        {searchResults.phone}
                       </p>
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-600">개업일</p>
-                      <p className="text-sm text-gray-900">
-                        {searchResults.startDate}
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             )}

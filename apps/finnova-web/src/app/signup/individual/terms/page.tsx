@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Alert, Checkbox } from '@/components/ui';
+import { SignupFlowRedirect } from '@/components/SignupFlowRedirect';
+import { useSignupFlow } from '@/hooks/useSignupFlow';
 
 interface TermsCheckboxes {
   tac1: boolean;
@@ -15,6 +17,7 @@ interface TermsCheckboxes {
 
 export default function IndividualTermsPage() {
   const router = useRouter();
+  const { updateData, completeStep, getStepData } = useSignupFlow();
   const [terms, setTerms] = useState<TermsCheckboxes>({
     tac1: false,
     tac2: false,
@@ -23,6 +26,20 @@ export default function IndividualTermsPage() {
     consent: false,
   });
   const [loading, setLoading] = useState(false);
+
+  // Load stored agreements on mount
+  useEffect(() => {
+    const stepData = getStepData(1);
+    if (stepData.agreedToTerms !== undefined) {
+      setTerms({
+        tac1: stepData.agreedToTerms || false,
+        tac2: stepData.agreedToPrivacy || false,
+        tac3: stepData.agreedToMarketing || false,
+        tac5: false,
+        consent: (stepData.agreedToTerms && stepData.agreedToPrivacy) || false,
+      });
+    }
+  }, [getStepData]);
 
   const allAgreed = Object.values(terms).every(value => value === true);
 
@@ -52,6 +69,17 @@ export default function IndividualTermsPage() {
 
     setLoading(true);
     try {
+      // Save agreements to signup flow
+      updateData({
+        agreedToTerms: terms.tac1,
+        agreedToPrivacy: terms.tac2,
+        agreedToMarketing: terms.tac3,
+      });
+
+      // Mark step 1 as completed
+      completeStep(1);
+
+      // Navigate to step 2 (NICE verification)
       router.push('/signup/individual/verify');
     } catch (error) {
       console.error('Navigation error:', error);
@@ -61,8 +89,9 @@ export default function IndividualTermsPage() {
   };
 
   return (
-    <Layout>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
+    <SignupFlowRedirect currentStep={1}>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
         <Card className="w-full max-w-2xl">
           {/* Progress Indicator */}
           <div className="mb-8 pb-6 border-b border-gray-200">
@@ -210,5 +239,6 @@ export default function IndividualTermsPage() {
         </Card>
       </div>
     </Layout>
+    </SignupFlowRedirect>
   );
 }

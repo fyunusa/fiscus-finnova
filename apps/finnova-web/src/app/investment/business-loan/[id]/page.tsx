@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Badge } from '@/components/ui';
-import { ChevronLeft, Heart, Share2, Building2 } from 'lucide-react';
+import { ChevronLeft, Heart, Share2, Briefcase, AlertCircle, Loader } from 'lucide-react';
+import * as investmentsService from '@/services/investments.service';
+import { Investment } from '@/services/investments.service';
 
 export default function BusinessLoanDetailPage() {
   const router = useRouter();
@@ -12,36 +14,75 @@ export default function BusinessLoanDetailPage() {
   const productId = params.id as string;
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'investor'>('info');
+  const [product, setProduct] = useState<Investment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string>('');
 
-  // Mock data
-  const product = {
-    id: productId,
-    title: 'IT 스타트업 운영자금 대출',
-    rate: 10.5,
-    period: 24,
-    fundingGoal: 150000000,
-    fundingCurrent: 105000000,
-    minInvestment: 2000000,
-    status: 'funding',
-    business: {
-      businessName: '테크플러스 솔루션',
-      businessRegistration: '234-56-78901',
-      industryCode: '62.01',
-      industry: '정보통신 소프트웨어 개발 및 공급',
-      establishedYear: 2018,
-    },
-    financials: {
-      lastYearRevenue: 2500000000,
-      lastYearProfit: 450000000,
-      currentAssets: 1200000000,
-      totalDebt: 800000000,
-    },
-    loanPurpose: '신규 제품 개발 및 마케팅 비용',
-  };
+  // Fetch investment detail
+  useEffect(() => {
+    const fetchInvestment = async () => {
+      try {
+        setIsLoading(true);
+        setError('');
+        const response = await investmentsService.getInvestmentDetail(productId);
+        
+        if (response.success && response.data) {
+          setProduct(response.data);
+          
+          // Check if user has favorited this investment
+          try {
+            const favoriteCheck = await investmentsService.isFavorited(productId);
+            setIsFavorite(favoriteCheck.data.isFavorited);
+          } catch (err) {
+            console.error('Error checking favorite status:', err);
+            // Silently fail - default to not favorited
+          }
+        } else {
+          setError('투자 상품을 불러올 수 없습니다.');
+        }
+      } catch (err: any) {
+        console.error('Error fetching investment:', err);
+        setError(err.message || '투자 상품을 불러올 수 없습니다.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (productId) {
+      fetchInvestment();
+    }
+  }, [productId]);
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Loader className="animate-spin text-amber-600 mx-auto mb-4" size={40} />
+            <p className="text-gray-600">상품 정보를 불러오는 중...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Card className="p-8 text-center">
+            <AlertCircle className="text-red-500 mx-auto mb-4" size={40} />
+            <p className="text-red-600 text-lg mb-4">{error || '상품을 찾을 수 없습니다.'}</p>
+            <Button onClick={() => router.back()} className="bg-amber-600 text-white">
+              돌아가기
+            </Button>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
 
   const fundingPercent = Math.round((product.fundingCurrent / product.fundingGoal) * 100);
-  const roi = (product.financials.lastYearProfit / product.financials.lastYearRevenue * 100).toFixed(1);
-  const debtRatio = (product.financials.totalDebt / product.financials.currentAssets * 100).toFixed(1);
 
   return (
     <Layout>
@@ -58,7 +99,19 @@ export default function BusinessLoanDetailPage() {
             </button>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setIsFavorite(!isFavorite)}
+                onClick={async () => {
+                  try {
+                    if (isFavorite) {
+                      await investmentsService.removeFromFavorites(productId);
+                    } else {
+                      await investmentsService.addToFavorites(productId);
+                    }
+                    setIsFavorite(!isFavorite);
+                  } catch (err: any) {
+                    console.error('Error toggling favorite:', err);
+                    alert(err.message || '즐겨찾기 변경에 실패했습니다.');
+                  }
+                }}
                 className={`p-2 rounded-full transition ${
                   isFavorite
                     ? 'bg-red-100 text-red-600'
@@ -94,8 +147,10 @@ export default function BusinessLoanDetailPage() {
                   <p className="text-3xl font-bold text-gray-900">{product.period}개월</p>
                 </Card>
                 <Card className="p-4 text-center">
-                  <p className="text-sm text-gray-600 mb-1">당기순이익률</p>
-                  <p className="text-2xl font-bold text-amber-600">{roi}%</p>
+                  <p className="text-sm text-gray-600 mb-1">연간 매출</p>
+                  <p className="text-2xl font-bold text-amber-600">
+                    {product.annualRevenue ? `${Math.floor(product.annualRevenue / 100000000)}억` : '정보 없음'}
+                  </p>
                 </Card>
               </div>
 
@@ -133,7 +188,7 @@ export default function BusinessLoanDetailPage() {
                       : 'border-transparent text-gray-600'
                   }`}
                 >
-                  사업자 정보
+                  사업 정보
                 </button>
                 <button
                   onClick={() => setActiveTab('investor')}
@@ -152,35 +207,35 @@ export default function BusinessLoanDetailPage() {
                 <div className="space-y-6">
                   <Card className="p-6">
                     <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <Building2 size={20} className="text-amber-600" />
-                      사업자 정보
+                      <Briefcase size={20} className="text-amber-600" />
+                      사업 정보
                     </h3>
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm text-gray-600">상호명</p>
+                          <p className="text-sm text-gray-600">상품명</p>
                           <p className="font-semibold text-gray-900">
-                            {product.business.businessName}
+                            {product.title || '정보 없음'}
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">사업자번호</p>
-                          <p className="font-semibold text-gray-900 font-mono">
-                            {product.business.businessRegistration}
+                          <p className="text-sm text-gray-600">투자 기간</p>
+                          <p className="font-semibold text-gray-900">
+                            {product.period || 0}개월
                           </p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                         <div>
-                          <p className="text-sm text-gray-600">업태</p>
-                          <p className="font-semibold text-gray-900">
-                            {product.business.industry}
+                          <p className="text-sm text-gray-600">연 수익률</p>
+                          <p className="font-semibold text-green-600">
+                            {product.rate || 0}%
                           </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">설립연도</p>
+                          <p className="text-sm text-gray-600">투자자 수</p>
                           <p className="font-semibold text-gray-900">
-                            {product.business.establishedYear}년
+                            {product.investorCount || 0}명
                           </p>
                         </div>
                       </div>
@@ -192,51 +247,39 @@ export default function BusinessLoanDetailPage() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-blue-50 rounded-lg">
-                          <p className="text-sm text-gray-600 mb-1">전년도 매출</p>
+                          <p className="text-sm text-gray-600 mb-1">연간 매출</p>
                           <p className="text-2xl font-bold text-blue-600">
-                            {Math.floor(product.financials.lastYearRevenue / 100000000)}억 원
+                            {product.annualRevenue ? `${Math.floor(product.annualRevenue / 100000000)}억 원` : '정보 없음'}
                           </p>
                         </div>
                         <div className="p-4 bg-green-50 rounded-lg">
-                          <p className="text-sm text-gray-600 mb-1">전년도 순이익</p>
+                          <p className="text-sm text-gray-600 mb-1">목표 자금</p>
                           <p className="text-2xl font-bold text-green-600">
-                            {Math.floor(product.financials.lastYearProfit / 100000000)}억 원
-                          </p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                        <div className="p-4 bg-purple-50 rounded-lg">
-                          <p className="text-sm text-gray-600 mb-1">유동자산</p>
-                          <p className="text-2xl font-bold text-purple-600">
-                            {Math.floor(product.financials.currentAssets / 100000000)}억 원
-                          </p>
-                        </div>
-                        <div className="p-4 bg-red-50 rounded-lg">
-                          <p className="text-sm text-gray-600 mb-1">총부채</p>
-                          <p className="text-2xl font-bold text-red-600">
-                            {Math.floor(product.financials.totalDebt / 100000000)}억 원
+                            {Math.floor(product.fundingGoal / 100000000)}억 원
                           </p>
                         </div>
                       </div>
                       <div className="pt-4 border-t">
-                        <p className="text-sm text-gray-600 mb-2">부채비율</p>
+                        <p className="text-sm text-gray-600 mb-2">펀딩 현황</p>
                         <div className="flex items-center gap-3">
                           <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                             <div
-                              className={`h-full ${Number(debtRatio) > 100 ? 'bg-red-500' : 'bg-green-500'}`}
-                              style={{ width: Math.min(Number(debtRatio), 100) + '%' }}
+                              className="h-full bg-gradient-to-r from-amber-500 to-amber-600"
+                              style={{ width: `${fundingPercent}%` }}
                             />
                           </div>
-                          <p className="font-bold text-gray-900">{debtRatio}%</p>
+                          <p className="font-bold text-gray-900">{fundingPercent}%</p>
                         </div>
                       </div>
                     </div>
                   </Card>
 
-                  <Card className="p-6">
-                    <h3 className="font-bold text-gray-900 mb-2">대출 목적</h3>
-                    <p className="text-gray-700">{product.loanPurpose}</p>
-                  </Card>
+                  {product.description && (
+                    <Card className="p-6">
+                      <h3 className="font-bold text-gray-900 mb-4">상품 설명</h3>
+                      <p className="text-gray-700 leading-relaxed">{product.description}</p>
+                    </Card>
+                  )}
                 </div>
               )}
 
@@ -251,7 +294,7 @@ export default function BusinessLoanDetailPage() {
                   </div>
                   <div className="space-y-3 text-sm text-gray-700">
                     <p>
-                      • IT 스타트업 업종의 특성상 높은 성장성 및 수익성을 기대할 수 있으나, 동시에 높은 위험성도 존재합니다.
+                      • 업종의 특성상 높은 성장성 및 수익성을 기대할 수 있으나, 동시에 높은 위험성도 존재합니다.
                     </p>
                     <p>
                       • 제공된 재무 정보는 공시 기준으로, 최신 재무 상황이 아닐 수 있습니다.

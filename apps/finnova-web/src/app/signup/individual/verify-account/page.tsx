@@ -4,14 +4,19 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Alert, Input } from '@/components/ui';
+import { SignupFlowRedirect } from '@/components/SignupFlowRedirect';
+import { initiate1WonTransfer, verify1WonCode, getPaygateStatus } from '@/services/paygate.service';
+import { useSignupFlow } from '@/hooks/useSignupFlow';
 
 export default function OneWonVerificationPage() {
   const router = useRouter();
+  const { updateData, completeStep } = useSignupFlow();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [step, setStep] = useState<1 | 2>(1);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [transferToken, setTransferToken] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
 
   useEffect(() => {
@@ -26,13 +31,27 @@ export default function OneWonVerificationPage() {
     setLoading(true);
 
     try {
-      // Simulate Paygate API call to send 1 KRW
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Call Paygate service to initiate 1 won transfer
+      const result = await initiate1WonTransfer({
+        bankCode: '004', // KEB Hana Bank code (sample)
+        accountNumber: '12345678901', // Placeholder - would come from form
+        accountHolder: '홍길동', // Placeholder - would come from form
+      });
+
+      if (!result.success || !result.token) {
+        throw new Error(result.error || 'Failed to initiate transfer');
+      }
+
+      setTransferToken(result.token);
       setVerificationSent(true);
       setStep(2);
       setTimeLeft(600); // 10 minutes
+      
+      console.log('✅ 1 won transfer initiated');
     } catch (err) {
-      setError('인증 요청 중 오류가 발생했습니다');
+      const errorMsg = err instanceof Error ? err.message : '인증 요청 중 오류가 발생했습니다';
+      setError(errorMsg);
+      console.error('Transfer initiation error:', err);
     } finally {
       setLoading(false);
     }
@@ -46,20 +65,48 @@ export default function OneWonVerificationPage() {
       return;
     }
 
+    if (!transferToken) {
+      setError('인증 토큰이 없습니다. 처음부터 다시 시작해주세요');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call Paygate service to verify code
+      const result = await verify1WonCode({
+        token: transferToken,
+        code: code,
+      });
 
-      // For demo: accept code "123"
-      if (code === '123') {
-        // Success - redirect to KYC
+      if (!result.success) {
+        throw new Error(result.error || 'Verification failed');
+      }
+
+      if (result.verified) {
+        console.log('✅ Account verification successful');
+        // Save account verification data to signup flow
+        updateData({
+          accountVerificationToken: transferToken,
+          verifiedAccountNumber: '12345678901', // Would come from form
+          verifiedBankCode: '004', // Would come from form
+          verifiedAccountHolder: '홍길동', // Would come from form
+        });
+        completeStep(3);
+        
+        // Mark step 7 as completed
+        localStorage.setItem('signup_step_7_completed', 'true');
+        sessionStorage.setItem('signup_step_7_completed', 'true');
+        
+        // Success - redirect to KYC step
         router.push('/signup/individual/kyc');
       } else {
-        setError('코드가 일치하지 않습니다. 다시 확인해주세요');
+        setError(result.error || '코드가 일치하지 않습니다. 다시 확인해주세요');
       }
     } catch (err) {
-      setError('인증 중 오류가 발생했습니다');
+      const errorMsg = err instanceof Error ? err.message : '인증 중 오류가 발생했습니다';
+      setError(errorMsg);
+      console.error('Verification error:', err);
     } finally {
       setLoading(false);
     }
@@ -72,9 +119,10 @@ export default function OneWonVerificationPage() {
   };
 
   return (
-    <Layout>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
-        <Card className="w-full max-w-2xl">
+    <SignupFlowRedirect currentStep={7}>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
+          <Card className="w-full max-w-2xl">
           {/* Progress Indicator */}
           <div className="mb-8 pb-6 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
@@ -185,6 +233,7 @@ export default function OneWonVerificationPage() {
                   onClick={() => {
                     setStep(1);
                     setVerificationSent(false);
+                    setTransferToken(null);
                     setCode('');
                     setTimeLeft(0);
                   }}
@@ -207,13 +256,30 @@ export default function OneWonVerificationPage() {
           )}
 
           {/* Demo Info */}
-          <div className="mt-6 pt-6 border-t border-gray-200 text-center">
-            <p className="text-xs text-gray-500">
-              데모: <span className="font-mono bg-gray-100 px-2 py-1 rounded">123</span>을 입력해주세요
-            </p>
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            {(() => {
+              const status = getPaygateStatus();
+              if (status.demoMode) {
+                return (
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3 text-center">
+                    <p className="text-blue-700 font-semibold mb-1">🔧 Demo Mode Active</p>
+                    <p className="text-blue-600 text-xs">
+                      Using demo verification. Any 3-digit code will be accepted.
+                    </p>
+                  </div>
+                );
+              } else {
+                return (
+                  <p className="text-xs text-gray-500 text-center">
+                    데모: <span className="font-mono bg-gray-100 px-2 py-1 rounded">123</span>을 입력해주세요
+                  </p>
+                );
+              }
+            })()}
           </div>
         </Card>
       </div>
     </Layout>
+    </SignupFlowRedirect>
   );
 }

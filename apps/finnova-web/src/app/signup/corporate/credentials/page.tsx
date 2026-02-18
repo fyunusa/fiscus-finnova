@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Alert, Input } from '@/components/ui';
@@ -15,6 +15,7 @@ export default function CorporateCredentialsPage() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [emailChecked, setEmailChecked] = useState(false);
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const passwordRules = {
@@ -35,24 +36,46 @@ export default function CorporateCredentialsPage() {
   const isPasswordValid = Object.values(passwordRules).every(Boolean);
 
   const handleCheckEmail = async () => {
-    if (!email.includes('@')) {
+    if (!email.trim()) {
+      setError('이메일을 입력해주세요');
+      return;
+    }
+
+    // Basic format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('올바른 이메일 형식을 입력해주세요');
       setEmailAvailable(false);
+      setEmailChecked(true);
       return;
     }
 
     setLoading(true);
+    setError('');
     try {
-      // 실제로는 API 호출
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Call backend email duplicate check API
+      const response = await fetch('http://localhost:4000/api/v1/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
 
-      // 데모: 특정 이메일만 거부
-      if (email === 'demo@example.com') {
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError('이메일 확인 중 오류가 발생했습니다');
         setEmailAvailable(false);
-      } else {
-        setEmailAvailable(true);
+        setEmailChecked(true);
+        return;
       }
+
+      setEmailAvailable(result.data.available);
       setEmailChecked(true);
+      if (!result.data.available) {
+        setError('');
+      }
     } catch (err) {
+      setError('이메일 확인 중 오류가 발생했습니다');
       setEmailAvailable(false);
     } finally {
       setLoading(false);
@@ -61,21 +84,104 @@ export default function CorporateCredentialsPage() {
 
   const handleNext = async () => {
     if (!emailAvailable || !isPasswordValid || !isPasswordMatching) {
+      if (!emailAvailable) {
+        setError('이메일 중복확인을 먼저 해주세요');
+      }
       return;
     }
 
     setLoading(true);
+    setError('');
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      router.push('/signup/corporate/bank');
+      // Re-validate email before proceeding (in case user modified it)
+      const emailValidationResponse = await fetch('http://localhost:4000/api/v1/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const emailValidationResult = await emailValidationResponse.json();
+
+      if (!emailValidationResponse.ok || !emailValidationResult.data.available) {
+        setError('이메일이 이미 등록되었거나 유효하지 않습니다. 다시 확인해주세요.');
+        setEmailAvailable(false);
+        setLoading(false);
+        return;
+      }
+
+      // Aggregate all data from previous steps (stored in sessionStorage)
+      const payloadData = {
+        // Step 1: Terms (assuming these are stored)
+        agreedToTerms: sessionStorage.getItem('agreedToTerms') === 'true' || true,
+        agreedToPrivacy: sessionStorage.getItem('agreedToPrivacy') === 'true' || true,
+        agreedToMarketing: sessionStorage.getItem('agreedToMarketing') === 'true' || false,
+        
+        // Step 2: Representative info
+        representativePhone: sessionStorage.getItem('representativePhone') || '',
+        
+        // Step 3: Business info
+        businessName: sessionStorage.getItem('businessName') || '',
+        businessRegistrationNumber: sessionStorage.getItem('businessRegistrationNumber') || '',
+        
+        // Step 4: Corporate info
+        address: sessionStorage.getItem('corporateAddress') || '',
+        postcode: sessionStorage.getItem('corporatePostcode') || '',
+        buildingName: sessionStorage.getItem('corporateBuildingName') || '',
+        corporatePhone: sessionStorage.getItem('corporatePhone') || '',
+        
+        // Step 5: Credentials
+        email,
+        password,
+      };
+
+      // Call backend signup API
+      const response = await fetch('http://localhost:4000/api/v1/auth/corporate/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payloadData),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        setError(result.message || '회원가입에 실패했습니다. 다시 시도해주세요.');
+        setLoading(false);
+        return;
+      }
+
+      // Save tokens to localStorage
+      if (result.data?.accessToken) {
+        localStorage.setItem('accessToken', result.data.accessToken);
+        localStorage.setItem('refreshToken', result.data.refreshToken || '');
+      }
+
+      // Clear session storage
+      sessionStorage.clear();
+
+      // Redirect to success/complete page
+      router.push('/signup/corporate/complete');
     } catch (err) {
-      console.error('Error:', err);
+      setError('회원가입 중 오류가 발생했습니다.');
+      console.error('Signup error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const canProceed = emailAvailable && isPasswordValid && isPasswordMatching;
+
+  // Debug: Log current state
+  useEffect(() => {
+    console.log('Step 5 State:', {
+      emailAvailable,
+      emailChecked,
+      isPasswordValid,
+      isPasswordMatching,
+      canProceed,
+      password: password ? '***' : '',
+      passwordConfirm: passwordConfirm ? '***' : '',
+    });
+  }, [emailAvailable, emailChecked, isPasswordValid, isPasswordMatching, canProceed, password, passwordConfirm]);
 
   return (
     <Layout>
@@ -86,7 +192,7 @@ export default function CorporateCredentialsPage() {
               인증 정보 설정
             </h1>
             <p className="text-gray-600">
-              5 / 11 단계
+              5 / 5 단계
             </p>
           </div>
 
@@ -111,13 +217,13 @@ export default function CorporateCredentialsPage() {
                       setEmailChecked(false);
                       setEmailAvailable(null);
                     }}
-                    disabled={loading || emailAvailable === true}
+                    disabled={loading}
                     className="flex-1"
                   />
                   <Button
                     onClick={handleCheckEmail}
                     variant="outline"
-                    disabled={!email || loading || emailAvailable === true}
+                    disabled={!email || loading}
                   >
                     {loading ? '확인 중...' : '중복확인'}
                   </Button>
@@ -248,7 +354,23 @@ export default function CorporateCredentialsPage() {
 
             {!canProceed && (
               <Alert type="warning" className="mb-6">
-                이메일 중복확인, 비밀번호 설정을 완료해주세요.
+                <div className="space-y-1">
+                  {!emailAvailable && (
+                    <p>✗ 이메일 중복확인을 완료해주세요. (중복확인 버튼 클릭 후 &quot;사용 가능한 이메일입니다&quot; 확인)</p>
+                  )}
+                  {!isPasswordValid && (
+                    <p>✗ 비밀번호가 모든 조건을 만족해야 합니다. (8자 이상, 영문/숫자/특수문자 포함)</p>
+                  )}
+                  {!isPasswordMatching && (
+                    <p>✗ 비밀번호 확인이 일치하지 않습니다.</p>
+                  )}
+                </div>
+              </Alert>
+            )}
+
+            {error && (
+              <Alert type="error" className="mb-6">
+                {error}
               </Alert>
             )}
 
@@ -270,6 +392,27 @@ export default function CorporateCredentialsPage() {
                 다음
               </Button>
             </div>
+
+            {/* Debug Panel - Development Only */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg text-xs font-mono">
+                <div className="font-bold mb-2 text-gray-700">Debug Info:</div>
+                <div className="space-y-1 text-gray-600">
+                  <div>emailChecked: {emailChecked ? '✓' : '✗'}</div>
+                  <div>emailAvailable: {emailAvailable === null ? 'null' : emailAvailable ? '✓' : '✗'}</div>
+                  <div>isPasswordValid: {isPasswordValid ? '✓' : '✗'}</div>
+                  <div>isPasswordMatching: {isPasswordMatching ? '✓' : '✗'}</div>
+                  <div>canProceed: {canProceed ? '✓ YES' : '✗ NO'}</div>
+                  <div className="mt-2 pt-2 border-t border-gray-300">
+                    Password Rules:
+                    <div>- 8+ chars: {passwordRules.minLength ? '✓' : '✗'}</div>
+                    <div>- Letters: {passwordRules.hasLetters ? '✓' : '✗'}</div>
+                    <div>- Numbers: {passwordRules.hasNumbers ? '✓' : '✗'}</div>
+                    <div>- Special: {passwordRules.hasSpecial ? '✓' : '✗'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
       </div>

@@ -48,7 +48,7 @@ export default function CorporateCompletePage() {
               가입이 완료되었습니다!
             </h1>
             <p className="text-gray-600 mb-2">
-              11 / 11 단계
+              5 / 5 단계 - 완료
             </p>
             <p className="text-lg text-green-700 font-semibold">
               핀노바 법인 투자자 회원가입을 축하합니다

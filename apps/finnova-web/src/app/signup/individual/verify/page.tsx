@@ -4,6 +4,9 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Alert, Input } from '@/components/ui';
+import { SignupFlowRedirect } from '@/components/SignupFlowRedirect';
+import { requestNiceVerification, verifyNiceCode, getNiceStatus } from '@/services/nice.service';
+import { useSignupFlow } from '@/hooks/useSignupFlow';
 
 interface VerificationStep {
   step: 1 | 2;
@@ -11,6 +14,7 @@ interface VerificationStep {
 
 export default function IdentityVerificationPage() {
   const router = useRouter();
+  const { updateData, completeStep, getStepData } = useSignupFlow();
   const [step, setStep] = useState<VerificationStep['step']>(1);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -19,8 +23,24 @@ export default function IdentityVerificationPage() {
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
   const [codeVerified, setCodeVerified] = useState(false);
+  const [niceToken, setNiceToken] = useState<string | null>(null);
 
-  // Timer for code verification
+  // Load stored data from previous session on mount
+  React.useEffect(() => {
+    const stepData = getStepData(2);
+    if (stepData.verifiedName) {
+      setName(stepData.verifiedName);
+    }
+    if (stepData.verifiedPhone) {
+      setPhone(stepData.verifiedPhone);
+    }
+  }, [getStepData]);
+
+  // Test log - verify component is rendering
+  React.useEffect(() => {
+    console.log('🎯 IdentityVerificationPage component mounted!');
+  }, []);
+
   React.useEffect(() => {
     if (step === 2 && timeLeft > 0 && !codeVerified) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
@@ -42,24 +62,50 @@ export default function IdentityVerificationPage() {
   };
 
   const handleRequestVerification = async () => {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('✅ handleRequestVerification called!');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     setError('');
 
     if (!name.trim()) {
+      console.log('❌ Name is empty');
       setError('이름을 입력해주세요');
       return;
     }
+    console.log('✓ Name valid:', name);
 
-    if (phone.replace(/\D/g, '').length !== 10) {
+    const phoneDigits = phone.replace(/\D/g, '');
+    console.log('✓ Phone digits:', phoneDigits, 'Length:', phoneDigits.length);
+    
+    if (phoneDigits.length !== 11) {
+      console.log('❌ Phone number invalid (not 11 digits)');
       setError('올바른 전화번호를 입력해주세요');
       return;
     }
-
+    console.log('✓ Phone valid');
     setLoading(true);
     try {
-      // Simulate NICE/KCB API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('📞 Calling NICE API with:', { name: name.trim(), phone: phoneDigits });
       
-      // For demo, accept any phone number
+      // Call NICE API (or demo mode)
+      const result = await requestNiceVerification({
+        name: name.trim(),
+        phone: phoneDigits,
+      });
+      if (!result.success) {
+        console.log('❌ API returned error:', result.error);
+        setError(result.error || '인증 요청 중 오류가 발생했습니다');
+        return;
+      }
+
+      console.log('✓ API successful');
+      
+      // Store the token from NICE for code verification
+      if (result.token) {
+        setNiceToken(result.token);
+      }
+
+      console.log('Moving to step 2...');
       setStep(2);
       setTimeLeft(180);
     } catch (err) {
@@ -77,23 +123,59 @@ export default function IdentityVerificationPage() {
       return;
     }
 
+    if (!niceToken) {
+      setError('인증 토큰이 없습니다. 처음부터 다시 시작해주세요.');
+      return;
+    }
+
     setLoading(true);
     try {
-      // Simulate NICE/KCB API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call real NICE API to verify code
+      const result = await verifyNiceCode({
+        token: niceToken,
+        code: verificationCode,
+      });
 
-      // For demo, accept code "123456"
-      if (verificationCode === '123456') {
-        setCodeVerified(true);
-        // In real scenario, store CI/DI values and auto-fill name/birth/gender
-        setTimeout(() => {
-          router.push('/signup/individual/info');
-        }, 1500);
-      } else {
-        setError('인증코드가 일치하지 않습니다. 다시 확인해주세요');
+      console.log('Verify code result:', result);
+
+      if (!result.success) {
+        setError(result.error || '인증 중 오류가 발생했습니다');
+        return;
       }
+
+      // Store CI/DI values and user data for next step
+      if (result.ci) {
+        // Save all NICE verification data to signup flow
+        updateData({
+          niceToken: niceToken,
+          niceCI: result.ci,
+          niceDI: result.di || '',
+          verifiedName: result.name || name,
+          verifiedBirthDate: result.birthDate || '',
+          verifiedGender: result.gender || '',
+          verifiedPhone: phone.replace(/\D/g, ''),
+        });
+        completeStep(2);
+        
+        sessionStorage.setItem('niceCI', result.ci);
+        if (result.di) sessionStorage.setItem('niceDI', result.di);
+        if (result.name) sessionStorage.setItem('verifiedName', result.name);
+        if (result.birthDate) sessionStorage.setItem('verifiedBirthDate', result.birthDate);
+        if (result.gender) sessionStorage.setItem('verifiedGender', result.gender);
+      }
+
+      // Also store the user-entered data from this step
+      sessionStorage.setItem('verifiedPhone', phone.replace(/\D/g, ''));
+      sessionStorage.setItem('userEnteredName', name);
+
+      setCodeVerified(true);
+      // Redirect to next step (Step 4: Personal Info)
+      setTimeout(() => {
+        router.push('/signup/individual/info');
+      }, 1500);
     } catch (err) {
       setError('인증 중 오류가 발생했습니다');
+      console.error('NICE code verification error:', err);
     } finally {
       setLoading(false);
     }
@@ -102,10 +184,27 @@ export default function IdentityVerificationPage() {
   const handleResendCode = async () => {
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Resend code through NICE API (or demo mode)
+      const result = await requestNiceVerification({
+        name: name.trim(),
+        phone: phone.replace(/\D/g, ''),
+      });
+
+      if (!result.success) {
+        setError(result.error || '코드 재전송 중 오류가 발생했습니다');
+        return;
+      }
+
+      if (result.token) {
+        setNiceToken(result.token);
+      }
+
       setTimeLeft(180);
       setVerificationCode('');
       setError('');
+    } catch (err) {
+      setError('코드 재전송 중 오류가 발생했습니다');
+      console.error('Resend code error:', err);
     } finally {
       setLoading(false);
     }
@@ -113,9 +212,10 @@ export default function IdentityVerificationPage() {
 
   if (codeVerified) {
     return (
-      <Layout>
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4">
-          <Card className="w-full max-w-md text-center">
+      <SignupFlowRedirect currentStep={2}>
+        <Layout>
+          <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4">
+            <Card className="w-full max-w-md text-center">
             <div className="mb-6">
               <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
                 <svg className="w-10 h-10 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -128,12 +228,14 @@ export default function IdentityVerificationPage() {
           </Card>
         </div>
       </Layout>
+    </SignupFlowRedirect>
     );
   }
 
   return (
-    <Layout>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
+    <SignupFlowRedirect currentStep={2}>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-50 to-white px-4 py-8">
         <Card className="w-full max-w-md">
           {/* Progress Indicator */}
           <div className="mb-8 pb-6 border-b border-gray-200">
@@ -188,26 +290,37 @@ export default function IdentityVerificationPage() {
               </div>
 
               <Alert type="info" className="mb-6 text-sm">
-                <strong>안내:</strong> NICE/KCB의 안전한 인증 절차를 통해 본인 확인이 진행됩니다
+                <strong>안내:</strong> {(() => {
+                  const status = getNiceStatus();
+                  if (status.demoMode) {
+                    return 'Demo Mode: 데이터를 입력하고 진행해주세요. 실제 SMS는 발송되지 않습니다.';
+                  } else {
+                    return 'NICE/KCB의 안전한 인증 절차를 통해 본인 확인이 진행됩니다';
+                  }
+                })()}
               </Alert>
 
               <div className="flex gap-3">
-                <Button
-                  onClick={() => router.back()}
-                  variant="outline"
-                  className="flex-1"
+                <button
+                  onClick={() => {
+                    console.log('BACK BUTTON NATIVE CLICK');
+                    router.back();
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
                   disabled={loading}
                 >
                   이전
-                </Button>
-                <Button
-                  onClick={handleRequestVerification}
-                  className="flex-1"
-                  variant="primary"
-                  disabled={loading || !name.trim() || phone.replace(/\D/g, '').length !== 10}
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('REQUEST VERIFICATION BUTTON CLICKED');
+                    handleRequestVerification();
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+                  disabled={loading || !name.trim() || phone.replace(/\D/g, '').length !== 11}
                 >
                   {loading ? '요청 중...' : '인증요청'}
-                </Button>
+                </button>
               </div>
             </>
           ) : (
@@ -236,7 +349,14 @@ export default function IdentityVerificationPage() {
               </div>
 
               <Alert type="info" className="mb-4 text-sm">
-                <strong>안내:</strong> 문자로 받은 6자리 코드를 입력해주세요
+                <strong>안내:</strong> {(() => {
+                  const status = getNiceStatus();
+                  if (status.demoMode) {
+                    return 'Demo Mode: 아무 6자리 숫자를 입력하세요';
+                  } else {
+                    return '문자로 받은 6자리 코드를 입력해주세요';
+                  }
+                })()}
               </Alert>
 
               {timeLeft === 0 && (
@@ -246,41 +366,66 @@ export default function IdentityVerificationPage() {
               )}
 
               <div className="flex gap-2 mb-4">
-                <Button
-                  onClick={handleVerifyCode}
-                  className="flex-1"
-                  variant="primary"
+                <button
+                  onClick={() => {
+                    console.log('VERIFY CODE BUTTON CLICKED');
+                    handleVerifyCode();
+                  }}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
                   disabled={loading || verificationCode.length !== 6 || timeLeft === 0}
                 >
                   {loading ? '인증 중...' : '인증완료'}
-                </Button>
-                <Button
-                  onClick={handleResendCode}
-                  variant="outline"
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('RESEND CODE BUTTON CLICKED');
+                    handleResendCode();
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:bg-gray-100"
                   disabled={loading}
-                  className="px-4"
                 >
                   재전송
-                </Button>
+                </button>
               </div>
 
-              <Button
-                onClick={() => setStep(1)}
-                variant="ghost"
-                className="w-full"
+              <button
+                onClick={() => {
+                  console.log('BACK TO STEP 1 CLICKED');
+                  setStep(1);
+                }}
+                className="w-full px-4 py-2 text-gray-700 hover:bg-gray-50 rounded"
                 disabled={loading}
               >
                 이전 단계로
-              </Button>
+              </button>
             </>
           )}
         </Card>
 
         {/* Demo Info */}
-        <div className="mt-8 text-center text-xs text-gray-500 max-w-md">
-          <p>데모: 인증요청 후 인증코드 <span className="font-mono bg-gray-100 px-2 py-1 rounded">123456</span>을 입력해주세요</p>
-        </div>
+        {/* <div className="mt-8 text-center text-xs text-gray-500 max-w-md">
+          {(() => {
+            const status = getNiceStatus();
+            if (status.demoMode) {
+              return (
+                <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                  <p className="text-blue-700 font-semibold mb-1">🔧 Demo Mode Active</p>
+                  <p className="text-blue-600 text-xs">
+                    Using demo verification. Enter any name and phone number.
+                    <br/>
+                    Use any 6-digit code to proceed.
+                  </p>
+                </div>
+              );
+            } else {
+              return (
+                <p>NICE/KCB API를 통한 실제 본인인증이 진행됩니다</p>
+              );
+            }
+          })()}
+        </div> */}
       </div>
     </Layout>
+    </SignupFlowRedirect>
   );
 }

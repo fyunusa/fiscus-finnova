@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Alert, Input } from '@/components/ui';
+import { openAddressSearch, loadDaumPostcodeScript } from '@/services/daum.service';
+import { MapPin } from 'lucide-react';
 
 export default function CorporateInfoPage() {
   const router = useRouter();
@@ -13,11 +15,44 @@ export default function CorporateInfoPage() {
     businessNumber: '123-45-67890',
     businessType: '금융·보험',
     address: '',
+    postcode: '',
     detailAddress: '',
     phone: '',
     email: '',
   });
   const [loading, setLoading] = useState(false);
+
+  // Load Daum Postcode script on component mount
+  useEffect(() => {
+    loadDaumPostcodeScript().catch((error) => {
+      console.error('Failed to load Daum Postcode:', error);
+    });
+
+    // Prefill representative phone from previous step (Step 2 verification)
+    const representativePhone = sessionStorage.getItem('representativePhone');
+    if (representativePhone) {
+      // Format phone number for display
+      const formatted = representativePhone.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+      setFormData((prev) => ({
+        ...prev,
+        phone: formatted,
+      }));
+    }
+
+    // Prefill business name and registration number from Step 3
+    const businessName = sessionStorage.getItem('businessName');
+    const businessNumber = sessionStorage.getItem('businessRegistrationNumber');
+    const businessAddress = sessionStorage.getItem('businessAddress');
+    
+    if (businessName || businessNumber || businessAddress) {
+      setFormData((prev) => ({
+        ...prev,
+        companyName: businessName || prev.companyName,
+        businessNumber: businessNumber ? `${businessNumber.slice(0, 3)}-${businessNumber.slice(3, 5)}-${businessNumber.slice(5)}` : prev.businessNumber,
+        address: businessAddress || prev.address,
+      }));
+    }
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -27,14 +62,38 @@ export default function CorporateInfoPage() {
     }));
   };
 
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleAddressSearch = async () => {
+    try {
+      const result = await openAddressSearch();
+      handleChange('address', result.address);
+      handleChange('postcode', result.postcode);
+      handleChange('detailAddress', result.buildingName || result.detailAddress || '');
+      console.log('✅ Address selected:', result);
+    } catch (error) {
+      console.error('🚫 Address search failed:', error);
+    }
+  };
+
   const handleNext = async () => {
-    if (!formData.address.trim() || !formData.phone.trim() || !formData.email.trim()) {
+    if (!formData.address.trim() || !formData.postcode.trim() || !formData.phone.trim()) {
       return;
     }
 
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Store corporate info in session for final submission
+      sessionStorage.setItem('corporateAddress', formData.address);
+      sessionStorage.setItem('corporatePostcode', formData.postcode);
+      sessionStorage.setItem('corporateBuildingName', formData.detailAddress);
+      sessionStorage.setItem('corporatePhone', formData.phone);
+      
       router.push('/signup/corporate/credentials');
     } catch (err) {
       console.error('Error:', err);
@@ -43,7 +102,7 @@ export default function CorporateInfoPage() {
     }
   };
 
-  const allFilled = formData.address.trim() && formData.phone.trim() && formData.email.trim();
+  const allFilled = formData.address.trim() && formData.postcode.trim() && formData.phone.trim();
 
   return (
     <Layout>
@@ -54,7 +113,7 @@ export default function CorporateInfoPage() {
               기업 정보 입력
             </h1>
             <p className="text-gray-600">
-              4 / 11 단계
+              4 / 5 단계
             </p>
           </div>
 
@@ -131,24 +190,40 @@ export default function CorporateInfoPage() {
                       <label className="block text-sm font-medium text-gray-900 mb-2">
                         주소 (필수)
                       </label>
-                      <Input
-                        type="text"
-                        name="address"
-                        placeholder="기업 주소"
-                        value={formData.address}
-                        onChange={handleInputChange}
-                        disabled={loading}
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          name="address"
+                          placeholder="주소 검색을 클릭해주세요"
+                          value={formData.address}
+                          disabled
+                          className="flex-1 bg-gray-100"
+                        />
+                        <Button
+                          onClick={handleAddressSearch}
+                          variant="outline"
+                          disabled={loading}
+                          className="flex-shrink-0"
+                        >
+                          <MapPin className="w-4 h-4 mr-2" />
+                          검색
+                        </Button>
+                      </div>
+                      {formData.postcode && (
+                        <p className="text-xs text-green-600 mt-1">
+                          ✓ 우편번호: {formData.postcode}
+                        </p>
+                      )}
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-900 mb-2">
-                        상세주소 (선택)
+                        건물명 (선택)
                       </label>
                       <Input
                         type="text"
                         name="detailAddress"
-                        placeholder="예: 5층 501호"
+                        placeholder="예: 핀테크빌딩"
                         value={formData.detailAddress}
                         onChange={handleInputChange}
                         disabled={loading}
@@ -166,21 +241,13 @@ export default function CorporateInfoPage() {
                         value={formData.phone}
                         onChange={handleInputChange}
                         disabled={loading}
+                        className={formData.phone ? 'bg-blue-50' : ''}
                       />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-2">
-                        이메일 (필수)
-                      </label>
-                      <Input
-                        type="email"
-                        name="email"
-                        placeholder="corporate@company.com"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        disabled={loading}
-                      />
+                      {formData.phone && (
+                        <p className="text-xs text-green-600 mt-1">
+                          ✓ Step 2에서 확인된 번호입니다
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -203,10 +270,10 @@ export default function CorporateInfoPage() {
               <Button
                 onClick={handleNext}
                 className="flex-1"
-                loading={loading}
-                disabled={!allFilled}
+                variant="primary"
+                disabled={!allFilled || loading}
               >
-                다음
+                {loading ? '진행 중...' : '다음'}
               </Button>
             </div>
           </Card>

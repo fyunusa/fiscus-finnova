@@ -1,0 +1,13 @@
+{
+  "common": {
+    "messages": {
+      "success": "Success",
+      "error": "An error occurred",
+      "badRequest": "Bad request",
+      "unauthorized": "Unauthorized",
+      "forbidden": "Forbidden",
+      "notFound": "Not found",
+      "internalServerError": "Internal server error"
+    }
+  }
+}
