@@ -9,9 +9,9 @@ config({ path: `.env.${nodeEnv}` });
 
 const isProduction = nodeEnv === 'production';
 
-// Use relative paths for entities to avoid alias resolution issues in TypeORM CLI
-const entitiesPath = path.join(__dirname, 'src/**/{entities,modules}/**/*.entity.ts');
-const migrationsPath = path.join(__dirname, 'src/database/migrations/*.ts');
+// Use dist directory for entities and migrations to properly resolve path aliases
+const entitiesPath = path.join(__dirname, 'dist/**/{entities,modules}/**/*.entity.js');
+const migrationsPath = path.join(__dirname, 'dist/database/migrations/*.js');
 
 const AppDataSource = new DataSource({
   type: 'postgres',

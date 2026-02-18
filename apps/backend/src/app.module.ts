@@ -13,6 +13,7 @@ import { ExternalApiModule } from '@modules/external-api/external-api.module';
 import { FeatureFlagsModule } from '@modules/feature-flags/feature-flags.module';
 import { I18nConfigModule } from '@modules/i18n/i18n.module';
 import { InvestmentsModule } from '@modules/investments/investments.module';
+import { LoansModule } from '@modules/loans/loans.module';
 import { ALL_ENTITIES } from './database/entities';
 
 @Module({
@@ -51,6 +52,7 @@ import { ALL_ENTITIES } from './database/entities';
     ExternalApiModule,
     FeatureFlagsModule,
     InvestmentsModule,
+    LoansModule,
   ],
   controllers: [AppController],
   providers: [AppService],

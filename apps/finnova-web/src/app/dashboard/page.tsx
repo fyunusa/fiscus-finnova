@@ -71,25 +71,32 @@ export default function DashboardPage() {
       color: 'from-purple-500 to-purple-600'
     },
     {
-      title: '계좌 관리',
-      description: '등록된 은행 계좌 관리',
-      icon: '💳',
-      href: '/account/bank-accounts',
-      color: 'from-indigo-500 to-indigo-600'
-    },
-    {
-      title: '문서 관리',
-      description: '투자 및 대출 관련 문서',
-      icon: '📄',
-      href: '/account/documents',
-      color: 'from-cyan-500 to-cyan-600'
-    },
-    {
       title: '고객 지원',
       description: '채팅으로 실시간 상담',
       icon: '💬',
       href: '/support/chat',
       color: 'from-orange-500 to-orange-600'
+    },
+    {
+      title: '아파트 담보 대출',
+      description: '낮은 금리로 대출받기',
+      icon: '🏠',
+      href: '/loan/apartment',
+      color: 'from-indigo-500 to-indigo-600'
+    },
+    {
+      title: '대출 신청하기',
+      description: '간편한 온라인 대출 신청',
+      icon: '📝',
+      href: '/loan/application',
+      color: 'from-cyan-500 to-cyan-600'
+    },
+    {
+      title: '내 대출',
+      description: '신청하신 대출 현황 관리',
+      icon: '💳',
+      href: '/loan/my-loans',
+      color: 'from-rose-500 to-rose-600'
     },
   ];
 

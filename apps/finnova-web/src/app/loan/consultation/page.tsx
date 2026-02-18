@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
-import { Card, Button, Input } from '@/components/ui';
+import { Card, Button, Input, Alert } from '@/components/ui';
 import Link from 'next/link';
 import { CheckCircle, Phone, Mail, Clock, ArrowRight } from 'lucide-react';
+import { loanService } from '@/services/loanService';
 
 interface ConsultationFormData {
   step: number;
@@ -15,7 +16,10 @@ interface ConsultationFormData {
   loanAmount: string;
   propertyType: string;
   purpose: string;
+  message: string;
   isSubmitted: boolean;
+  isSubmitting: boolean;
+  error: string | null;
 }
 
 export default function ConsultationPage() {
@@ -28,13 +32,17 @@ export default function ConsultationPage() {
     loanAmount: '',
     propertyType: '',
     purpose: '',
+    message: '',
     isSubmitted: false,
+    isSubmitting: false,
+    error: null,
   });
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
+      error: null, // Clear error when user starts typing
     }));
   };
 
@@ -49,12 +57,39 @@ export default function ConsultationPage() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (formData.loanAmount && formData.propertyType && formData.purpose) {
-      setFormData(prev => ({
-        ...prev,
-        isSubmitted: true,
-      }));
+      try {
+        setFormData(prev => ({
+          ...prev,
+          isSubmitting: true,
+          error: null,
+        }));
+
+        await loanService.createConsultation({
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          loanType: formData.loanType,
+          requestedAmount: parseInt(formData.loanAmount),
+          propertyType: formData.propertyType,
+          purpose: formData.purpose,
+          message: formData.message,
+        });
+
+        setFormData(prev => ({
+          ...prev,
+          isSubmitted: true,
+          isSubmitting: false,
+        }));
+      } catch (error) {
+        console.error('Failed to submit consultation:', error);
+        setFormData(prev => ({
+          ...prev,
+          isSubmitting: false,
+          error: '상담 신청 중 오류가 발생했습니다. 다시 시도해주세요.',
+        }));
+      }
     }
   };
 
@@ -68,7 +103,10 @@ export default function ConsultationPage() {
       loanAmount: '',
       propertyType: '',
       purpose: '',
+      message: '',
       isSubmitted: false,
+      isSubmitting: false,
+      error: null,
     });
   };
 
@@ -161,6 +199,13 @@ export default function ConsultationPage() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Error Alert */}
+                  {formData.error && (
+                    <Alert className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
+                      {formData.error}
+                    </Alert>
+                  )}
 
                   {/* Form Content */}
                   {formData.step === 1 ? (
@@ -282,19 +327,32 @@ export default function ConsultationPage() {
                         />
                       </div>
 
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          추가 메시지 (선택사항)
+                        </label>
+                        <textarea
+                          placeholder="추가로 전달하고 싶은 내용을 입력하세요"
+                          value={formData.message}
+                          onChange={(e) => handleInputChange('message', e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-24 resize-none"
+                        />
+                      </div>
+
                       <div className="flex gap-4">
                         <Button
                           onClick={() => setFormData(prev => ({ ...prev, step: 1 }))}
                           className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold"
+                          disabled={formData.isSubmitting}
                         >
                           이전 단계
                         </Button>
                         <Button
                           onClick={handleSubmit}
-                          disabled={!formData.loanAmount || !formData.propertyType || !formData.purpose}
+                          disabled={!formData.loanAmount || !formData.propertyType || !formData.purpose || formData.isSubmitting}
                           className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold"
                         >
-                          상담 신청
+                          {formData.isSubmitting ? '신청 중...' : '상담 신청'}
                         </Button>
                       </div>
                     </div>

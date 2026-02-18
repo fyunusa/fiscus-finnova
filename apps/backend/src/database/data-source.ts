@@ -1,8 +1,6 @@
 import { DataSource } from 'typeorm';
 import path from 'path';
-import { User } from '@modules/users/entities/user.entity';
-import { Investment } from '@modules/investments/entities/investment.entity';
-import { UserInvestment } from '@modules/investments/entities/user-investment.entity';
+import { ALL_ENTITIES } from './entities';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -15,7 +13,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_DATABASE || 'fiscus_db',
   synchronize: false,
   logging: !isProduction ? ['error', 'warn'] : false,
-  entities: [User, Investment, UserInvestment],
+  entities: ALL_ENTITIES,
   migrations: [
     path.join(__dirname, isProduction ? '../../migrations/*.js' : '../database/migrations/*.ts'),
   ],

@@ -17,9 +17,38 @@ import { PhoneVerification } from '@modules/auth/entities/sms-verification-code.
 import { Investment } from '@modules/investments/entities/investment.entity';
 import { UserInvestment } from '@modules/investments/entities/user-investment.entity';
 import { UserFavoriteInvestment } from '@modules/investments/entities/user-favorite-investment.entity';
+import {
+  LoanProduct,
+  LoanApplication,
+  LoanApplicationDocument,
+  LoanAccount,
+  LoanRepaymentSchedule,
+  LoanRepaymentTransaction,
+  LoanConsultation,
+} from '@modules/loans/entities';
 
 // Re-export all entities
-export { User, BankAccount, KYCDocument, TransactionPIN, VirtualAccount, VirtualAccountTransaction, PasswordResetOTP, EmailVerification, PhoneVerification, Investment, UserInvestment, UserFavoriteInvestment };
+export {
+  User,
+  BankAccount,
+  KYCDocument,
+  TransactionPIN,
+  VirtualAccount,
+  VirtualAccountTransaction,
+  PasswordResetOTP,
+  EmailVerification,
+  PhoneVerification,
+  Investment,
+  UserInvestment,
+  UserFavoriteInvestment,
+  LoanProduct,
+  LoanApplication,
+  LoanApplicationDocument,
+  LoanAccount,
+  LoanRepaymentSchedule,
+  LoanRepaymentTransaction,
+  LoanConsultation,
+};
 
 // Collection array for easy use in TypeORM configuration
 export const ALL_ENTITIES = [
@@ -34,7 +63,14 @@ export const ALL_ENTITIES = [
   PhoneVerification,
   Investment,
   UserInvestment,
-  UserFavoriteInvestment
+  UserFavoriteInvestment,
+  LoanProduct,
+  LoanApplication,
+  LoanApplicationDocument,
+  LoanAccount,
+  LoanRepaymentSchedule,
+  LoanRepaymentTransaction,
+  LoanConsultation,
 ];
 
 // Export services (in case we need centralized service management)
