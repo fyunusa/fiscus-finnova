@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { kakaoAuthService } from '@/services/kakaoAuth.service';
 
-export const dynamic = 'force-dynamic';
-
 export default function KakaoCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();

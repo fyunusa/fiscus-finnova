@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 const REDIRECT_URI =
   process.env.NEXT_PUBLIC_KAKAO_CORPORATE_SIGNUP_REDIRECT_URI ||
