@@ -26,6 +26,12 @@ export class User {
   @Column({ type: 'varchar', length: 255, nullable: true })
   password?: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true, unique: true })
+  kakaoId?: string;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  profileImageUrl?: string;
+
   @Column({ type: 'varchar', length: 20, nullable: true })
   phoneNumber?: string;
 

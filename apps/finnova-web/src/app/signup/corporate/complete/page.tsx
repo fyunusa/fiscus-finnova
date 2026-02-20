@@ -55,31 +55,7 @@ export default function CorporateCompletePage() {
             </p>
           </div>
 
-          {/* Virtual Account Info */}
-          <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 mb-8">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-blue-600 rounded-full" />
-                <h2 className="font-semibold text-gray-900">
-                  가상계좌가 발급되었습니다
-                </h2>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-blue-200">
-                <p className="text-sm text-gray-600 mb-2">
-                  <strong>가상계좌번호</strong>
-                </p>
-                <p className="text-2xl font-bold text-blue-600 mb-2">
-                  123-456-789012
-                </p>
-                <p className="text-sm text-gray-600">
-                  은행: 국민은행 | 예금주: (주)핀테크솔루션
-                </p>
-                <Alert type="info" className="mt-4">
-                  <strong>안내:</strong> 이 계좌로 투자금을 입금하세요. 입금 후 자동으로 귀사의 핀노바 계정에 반영됩니다.
-                </Alert>
-              </div>
-            </div>
-          </Card>
+
 
           {/* Next Steps */}
           <Card className="mb-8">
@@ -133,7 +109,7 @@ export default function CorporateCompletePage() {
               대시보드로 이동
             </Button>
             <Button
-              onClick={() => router.push('/projects')}
+              onClick={() => router.push('/investment')}
               className="w-full"
               variant="outline"
             >

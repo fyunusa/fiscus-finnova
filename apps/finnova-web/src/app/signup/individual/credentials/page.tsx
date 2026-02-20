@@ -29,6 +29,7 @@ export default function CredentialsSetupPage() {
     password: '',
     confirmPassword: '',
   });
+  const [emailPrefilled, setEmailPrefilled] = useState(false);
   const [strength, setStrength] = useState<PasswordStrength>({
     minLength: false,
     hasLetters: false,
@@ -40,6 +41,16 @@ export default function CredentialsSetupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [emailExists, setEmailExists] = useState(false);
+
+  // Prefill email from Kakao verification if available
+  useEffect(() => {
+    const allData = getAllData();
+    if (allData.verifiedEmail && !credentials.email) {
+      setCredentials(prev => ({ ...prev, email: allData.verifiedEmail! }));
+      setEmailPrefilled(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (credentials.password) {
@@ -194,11 +205,14 @@ export default function CredentialsSetupPage() {
                 placeholder="your@email.com"
                 value={credentials.email}
                 onChange={(e) => handleChange('email', e.target.value)}
-                disabled={loading}
-                className={`w-full ${emailExists ? 'border-red-500' : ''}`}
+                  disabled={loading || emailPrefilled}
+                  className={`w-full ${emailExists ? 'border-red-500' : ''} ${emailPrefilled ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
               />
               <p className="text-xs text-gray-500 mt-1">
-                로그인 ID로 사용됩니다
+                  {emailPrefilled
+                    ? '카카오 계정 이메일에서 자동 입력됨'
+                    : '로그인 ID로 사용됩니다'}
               </p>
             </div>
 

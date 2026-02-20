@@ -375,4 +375,18 @@ export class AuthService {
       { pinHash: hashedPin }
     );
   }
+
+  async findUserByPhone(phoneNumber: string): Promise<User | null> {
+    // Strip formatting — normalise to digits only for lookup
+    const digits = phoneNumber.replace(/\D/g, '');
+    // Try exact match first, then strip leading zero variant
+    const user = await this.usersRepository
+      .createQueryBuilder('user')
+      .where('REGEXP_REPLACE(user.phoneNumber, \'[^0-9]\', \'\', \'g\') = :digits', { digits })
+      .orWhere('REGEXP_REPLACE(user.phoneNumber, \'[^0-9]\', \'\', \'g\') = :stripped', {
+        stripped: digits.startsWith('0') ? digits.slice(1) : `0${digits}`,
+      })
+      .getOne();
+    return user ?? null;
+  }
 }

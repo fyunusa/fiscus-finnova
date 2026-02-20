@@ -19,6 +19,24 @@ export default function OneWonVerificationPage() {
   const [transferToken, setTransferToken] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(0);
 
+  const isDev =
+    process.env.NODE_ENV === 'development' ||
+    process.env.NEXT_PUBLIC_ENV === 'development' ||
+    getPaygateStatus().demoMode;
+
+  const handleDevBypass = () => {
+    updateData({
+      accountVerificationToken: 'dev_bypass',
+      verifiedAccountNumber: '01099998888',
+      verifiedBankCode: '000',
+      verifiedAccountHolder: '테스트사용자',
+    });
+    completeStep(3);
+    localStorage.setItem('signup_step_7_completed', 'true');
+    sessionStorage.setItem('signup_step_7_completed', 'true');
+    router.push('/signup/individual/kyc');
+  };
+
   useEffect(() => {
     if (step === 2 && timeLeft > 0) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
@@ -138,6 +156,19 @@ export default function OneWonVerificationPage() {
           </div>
 
           {error && <Alert type="error" className="mb-4">{error}</Alert>}
+
+            {/* Dev bypass — hidden in production */}
+            {isDev && (
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-lg">
+                <p className="text-xs font-semibold text-amber-800 mb-2">🔧 테스트 모드</p>
+                <button
+                  onClick={handleDevBypass}
+                  className="w-full py-2 px-4 bg-amber-400 hover:bg-amber-500 text-amber-900 font-semibold rounded-lg text-sm transition-colors"
+                >
+                  건너뛰기 (테스트용) →
+                </button>
+              </div>
+            )}
 
           {step === 1 ? (
             // Step 1: Send 1 Won

@@ -13,6 +13,8 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiConsumes } from '@nestjs/swagger';
 import { AuthService } from '../services/auth.service';
 import { SignupService } from '../services/signup.service';
+import { KakaoAuthService } from '../services/kakao-auth.service';
+import { SmsService } from '../../external-api/services/sms.service';
 import { I18nService } from '@modules/i18n/i18n.service';
 import { PublicDataService } from '@modules/external-api/services/public-data.service';
 import { ResponseDto } from '@common/dtos/response.dto';
@@ -40,12 +42,38 @@ import {
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
+  // In-memory OTP store for forgot-email (phone → { code, email, expiresAt })
+  private readonly forgotEmailOtps = new Map<string, { code: string; email: string; expiresAt: number }>();
+
   constructor(
     private readonly authService: AuthService,
     private readonly signupService: SignupService,
+    private readonly kakaoAuthService: KakaoAuthService,
+    private readonly smsService: SmsService,
     private readonly publicDataService: PublicDataService,
     private readonly i18n: I18nService
   ) {}
+
+  // ===================== KAKAO OAUTH ===================== //
+
+  @Post('kakao/callback')
+  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('application/json')
+  @ApiOperation({ summary: 'Exchange Kakao authorization code for JWT tokens' })
+  @ApiResponse({ status: 200, description: 'Kakao login/register successful' })
+  async kakaoCallback(
+    @Body() body: { code: string; redirectUri?: string },
+  ): Promise<ResponseDto> {
+    try {
+      if (!body.code) {
+        throw new BadRequestException('Authorization code is required');
+      }
+      const result = await this.kakaoAuthService.handleCallback(body.code, body.redirectUri);
+      return generateSuccessResponse('카카오 로그인 성공', result);
+    } catch (error) {
+      handleStandardException(error, 'Kakao authentication failed');
+    }
+  }
 
   // ===================== LOGIN & REFRESH ===================== //
   @Post('login')
@@ -360,6 +388,63 @@ export class AuthController {
       return generateSuccessResponse('PIN이 변경되었습니다', {});
     } catch (error) {
       handleStandardException(error, 'PIN change failed');
+    }
+  }
+  // ===================== FORGOT EMAIL =====================
+
+  @Post('forgot-email/send-code')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send OTP to phone to retrieve associated email' })
+  async forgotEmailSendCode(@Body() body: { name: string; phoneNumber: string }): Promise<ResponseDto> {
+    try {
+      const { name, phoneNumber } = body;
+      if (!phoneNumber) throw new BadRequestException('Phone number is required');
+
+      // Look up user by phone number
+      const user = await this.authService.findUserByPhone(phoneNumber);
+      if (!user) {
+        // Don't reveal whether phone exists; still return success to prevent enumeration
+        return generateSuccessResponse('인증 코드가 전송되었습니다', {});
+      }
+
+      // Generate 6-digit OTP
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+      // Store OTP keyed by phone
+      this.forgotEmailOtps.set(phoneNumber, { code, email: user.email, expiresAt });
+
+      // Send via Twilio
+      await this.smsService.sendVerificationSms(phoneNumber, code);
+
+      return generateSuccessResponse('인증 코드가 전송되었습니다', {});
+    } catch (error) {
+      handleStandardException(error, 'Failed to send forgot-email code');
+    }
+  }
+
+  @Post('forgot-email/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify OTP and return associated email' })
+  async forgotEmailVerify(@Body() body: { phoneNumber: string; code: string }): Promise<ResponseDto> {
+    try {
+      const { phoneNumber, code } = body;
+      const record = this.forgotEmailOtps.get(phoneNumber);
+
+      if (!record || record.code !== code || Date.now() > record.expiresAt) {
+        throw new BadRequestException('인증 코드가 올바르지 않거나 만료되었습니다');
+      }
+
+      // Consume OTP
+      this.forgotEmailOtps.delete(phoneNumber);
+
+      // Mask email: abc***@example.com
+      const [local, domain] = record.email.split('@');
+      const maskedEmail = `${local.slice(0, 3)}***@${domain}`;
+
+      return generateSuccessResponse('이메일을 찾았습니다', { email: maskedEmail, fullEmail: record.email });
+    } catch (error) {
+      handleStandardException(error, 'Failed to verify forgot-email code');
     }
   }
 }

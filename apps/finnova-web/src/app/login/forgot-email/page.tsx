@@ -34,24 +34,32 @@ export default function ForgotEmailPage() {
       return;
     }
 
-    if (!/^010\d{8}$/.test(phoneNumber)) {
-      setError('올바른 휴대폰 번호를 입력해주세요 (01012345678)');
+    if (!/^\d{7,15}$/.test(phoneNumber)) {
+      setError('올바른 휴대폰 번호를 입력해주세요 (숫자만, 7~15자리)');
       return;
     }
 
     setLoading(true);
     try {
-      // TODO: Integrate with NICE/KCB API
-      // const response = await fetch('/api/auth/send-verification', {
-      //   method: 'POST',
-      //   body: JSON.stringify({ name, phoneNumber }),
-      // });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/forgot-email/send-code`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phoneNumber }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        setError(result.message || '인증 코드 전송에 실패했습니다');
+        setLoading(false);
+        return;
+      }
+
       setStep('verify');
-      setTimer(180); // 3 minutes
+      setTimer(600); // 10 minutes
     } catch (err) {
       setError('인증 코드 전송에 실패했습니다. 다시 시도해주세요.');
     } finally {
@@ -74,23 +82,25 @@ export default function ForgotEmailPage() {
 
     setLoading(true);
     try {
-      // TODO: Integrate with backend API
-      // const response = await fetch('/api/auth/find-email', {
-      //   method: 'POST',
-      //   body: JSON.stringify({ phoneNumber, verificationCode }),
-      // });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock response: check if single or multiple emails
-      const mockEmails = ['user@example.com'];
-      
-      if (mockEmails.length === 1) {
-        router.push(`/login/forgot-email/result?email=${encodeURIComponent(mockEmails[0])}`);
-      } else {
-        router.push('/login/forgot-email/multiple');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/forgot-email/verify`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber, code: verificationCode }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        setError(result.message || '인증 코드가 일치하지 않습니다. 다시 시도해주세요.');
+        setLoading(false);
+        return;
       }
+
+      const email = result.data?.fullEmail || result.data?.email || '';
+      router.push(`/login/forgot-email/result?email=${encodeURIComponent(email)}`);
     } catch (err) {
       setError('인증 코드가 일치하지 않습니다. 다시 시도해주세요.');
     } finally {
@@ -148,10 +158,10 @@ export default function ForgotEmailPage() {
                   </label>
                   <Input
                     type="tel"
-                    placeholder="01012345678"
+                    placeholder="숫자만 입력하세요"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
-                    maxLength={11}
+                    maxLength={15}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <p className="mt-1 text-xs text-gray-500">하이픈 없이 입력해주세요</p>

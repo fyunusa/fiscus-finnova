@@ -200,9 +200,9 @@ export default function AccountPage() {
   };
 
   const quickStats = [
-    { label: '총 투자액', value: '₩5,000,000', icon: '💰', color: 'from-blue-500 to-blue-600' },
-    { label: '누적 수익', value: '₩125,000', icon: '📈', color: 'from-green-500 to-green-600' },
-    { label: '가용 잔액', value: '₩1,234,567', icon: '💳', color: 'from-purple-500 to-purple-600' },
+    { label: '총 투자액', value: '—', icon: '💰', color: 'from-blue-500 to-blue-600' },
+    { label: '누적 수익', value: '—', icon: '📈', color: 'from-green-500 to-green-600' },
+    { label: '가용 잔액', value: '—', icon: '💳', color: 'from-purple-500 to-purple-600' },
   ];
 
   const handlePasswordChange = async () => {
@@ -526,7 +526,7 @@ export default function AccountPage() {
                 <div className="mb-12">
                   <Link href="/dashboard">
                     <Button className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 font-medium shadow-lg hover:shadow-xl transition-all">
-                      📊 Go to Investment Dashboard
+                      📊 대시보드로 이동
                     </Button>
                   </Link>
                 </div>
@@ -541,10 +541,6 @@ export default function AccountPage() {
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <p className="text-gray-600 text-sm mb-1">휴대폰</p>
                     <p className="text-lg font-semibold text-gray-900">{userProfile.phone}</p>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <p className="text-gray-600 text-sm mb-1">가상계좌</p>
-                    <p className="text-lg font-semibold text-gray-900">{userProfile.virtualAccount}</p>
                   </div>
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <p className="text-gray-600 text-sm mb-1">가입일</p>

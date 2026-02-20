@@ -15,6 +15,7 @@ import { SignupService } from './services/signup.service';
 import { EncryptionService } from './services/encryption.service';
 import { NiceVerificationService } from './services/nice-verification.service';
 import { PaygateVerificationService } from './services/paygate-verification.service';
+import { KakaoAuthService } from './services/kakao-auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -52,6 +53,7 @@ import { UsersModule } from '../users/users.module';
     SignupService,
     EncryptionService,
     NiceVerificationService,
+    KakaoAuthService,
     PaygateVerificationService,
     EmailService,
     SmsService,
@@ -65,6 +67,7 @@ import { UsersModule } from '../users/users.module';
     SignupService,
     EncryptionService,
     NiceVerificationService,
+    KakaoAuthService,
     PaygateVerificationService,
     JwtAuthGuard,
     RolesGuard,

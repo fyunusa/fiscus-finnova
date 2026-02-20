@@ -22,10 +22,10 @@ export default function MemberInfoPage() {
   const router = useRouter();
   const { updateData, completeStep, getStepData } = useSignupFlow();
   const [info, setInfo] = useState<MemberInfo>({
-    name: '김철수', // Auto-filled from verification
-    birthDate: '1990-01-15', // Auto-filled from verification
-    gender: 'M', // Auto-filled from verification
-    phone: '010-1234-5678', // Auto-filled from verification
+    name: '',
+    birthDate: '',
+    gender: '',
+    phone: '',
     address: '',
     postcode: '',
     buildingName: '',
@@ -34,15 +34,27 @@ export default function MemberInfoPage() {
 
   // Load stored data on mount
   useEffect(() => {
+    const step2Data = getStepData(2) as {
+      verifiedName?: string;
+      verifiedPhone?: string;
+      verifiedBirthDate?: string;
+      verifiedGender?: string;
+      verificationMethod?: string;
+    };
     const stepData = getStepData(4);
-    if (stepData.address) {
-      setInfo(prev => ({
-        ...prev,
-        address: stepData.address || '',
-        postcode: stepData.postcode || '',
-        buildingName: stepData.buildingName || '',
-      }));
-    }
+
+    setInfo(prev => ({
+      ...prev,
+      // Prefill from verification (NICE or Kakao)
+      name: step2Data.verifiedName || prev.name,
+      phone: step2Data.verifiedPhone || prev.phone,
+      birthDate: step2Data.verifiedBirthDate || prev.birthDate,
+      gender: (step2Data.verifiedGender as 'M' | 'F' | '') || prev.gender,
+      // Prefill address if previously saved
+      address: stepData.address || prev.address,
+      postcode: stepData.postcode || prev.postcode,
+      buildingName: stepData.buildingName || prev.buildingName,
+    }));
   }, [getStepData]);
 
   // Load Daum Postcode script on component mount
@@ -73,6 +85,10 @@ export default function MemberInfoPage() {
   };
 
   const handleProceed = async () => {
+    if (!info.name.trim()) {
+      alert('이름을 입력해주세요');
+      return;
+    }
     if (!info.address.trim() || !info.postcode.trim() || !info.buildingName.trim()) {
       alert('주소를 모두 입력해주세요');
       return;
@@ -85,6 +101,11 @@ export default function MemberInfoPage() {
         address: info.address,
         postcode: info.postcode,
         buildingName: info.buildingName,
+        // Also save any manually edited identity fields for Kakao users
+        verifiedName: info.name,
+        verifiedBirthDate: info.birthDate,
+        verifiedGender: info.gender,
+        verifiedPhone: info.phone.replace(/\D/g, ''),
       });
       completeStep(4);
       
@@ -118,20 +139,22 @@ export default function MemberInfoPage() {
           </div>
 
           <div className="space-y-6 mb-8">
-            {/* Auto-filled Fields (Disabled) */}
+              {/* Auto-filled Fields — editable if empty (e.g. Kakao users don't get DOB/gender/phone) */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  이름
+                    이름 {!info.name && <span className="text-red-500">*</span>}
                 </label>
                 <Input
                   type="text"
                   value={info.name}
-                  disabled
-                  className="w-full bg-gray-100 cursor-not-allowed"
+                    onChange={(e) => handleChange('name', e.target.value)}
+                    disabled={!!info.name}
+                    placeholder="이름을 입력하세요"
+                    className={`w-full ${info.name ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  본인인증 정보에서 자동 입력됨
+                    {info.name ? '본인인증 정보에서 자동 입력됨' : '이름을 직접 입력해주세요'}
                 </p>
               </div>
 
@@ -142,11 +165,13 @@ export default function MemberInfoPage() {
                 <Input
                   type="text"
                   value={info.birthDate}
-                  disabled
-                  className="w-full bg-gray-100 cursor-not-allowed"
+                    onChange={(e) => handleChange('birthDate', e.target.value)}
+                    disabled={!!info.birthDate}
+                    placeholder="예: 1990-01-15"
+                    className={`w-full ${info.birthDate ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  본인인증 정보에서 자동 입력됨
+                    {info.birthDate ? '본인인증 정보에서 자동 입력됨' : '카카오 인증은 생년월일을 제공하지 않습니다'}
                 </p>
               </div>
             </div>
@@ -158,14 +183,17 @@ export default function MemberInfoPage() {
                 </label>
                 <select
                   value={info.gender}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed"
+                    onChange={(e) => handleChange('gender', e.target.value)}
+                    disabled={!!info.gender}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-700 ${info.gender ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
+                      }`}
                 >
+                    <option value="">선택하세요</option>
                   <option value="M">남성</option>
                   <option value="F">여성</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  본인인증 정보에서 자동 입력됨
+                    {info.gender ? '본인인증 정보에서 자동 입력됨' : '성별을 선택해주세요'}
                 </p>
               </div>
 
@@ -176,11 +204,13 @@ export default function MemberInfoPage() {
                 <Input
                   type="tel"
                   value={info.phone}
-                  disabled
-                  className="w-full bg-gray-100 cursor-not-allowed"
+                    onChange={(e) => handleChange('phone', e.target.value)}
+                    disabled={!!info.phone}
+                    placeholder="010-1234-5678"
+                    className={`w-full ${info.phone ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  본인인증 정보에서 자동 입력됨
+                    {info.phone ? '본인인증 정보에서 자동 입력됨' : '휴대폰 번호를 입력해주세요'}
                 </p>
               </div>
             </div>

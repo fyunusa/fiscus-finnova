@@ -20,6 +20,8 @@ export interface SignupData {
   verifiedBirthDate?: string;
   verifiedGender?: string;
   verifiedPhone?: string;
+  verifiedEmail?: string;          // From Kakao (email provided by Kakao account)
+  verificationMethod?: 'nice' | 'kakao'; // Which method was used at step 2
 
   // Step 3: Account Verification (1 Won)
   accountVerificationToken?: string;
@@ -258,6 +260,10 @@ export function useSignupFlow() {
           niceToken: state.data.niceToken,
           verifiedName: state.data.verifiedName,
           verifiedPhone: state.data.verifiedPhone,
+          verifiedBirthDate: state.data.verifiedBirthDate,
+          verifiedGender: state.data.verifiedGender,
+          verifiedEmail: state.data.verifiedEmail,
+          verificationMethod: state.data.verificationMethod,
         };
       case 3:
         return {

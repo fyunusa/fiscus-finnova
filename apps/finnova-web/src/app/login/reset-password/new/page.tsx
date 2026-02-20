@@ -33,35 +33,34 @@ export default function NewPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Password validation rules
-  const validatePassword = (password: string) => {
-    const rules = {
-      minLength: password.length >= 8,
-      hasLetter: /[a-zA-Z]/.test(password),
-      hasNumber: /\d/.test(password),
-      hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
-    };
+  // Pure function — safe to call anywhere including render
+  const getPasswordRules = (password: string) => ({
+    minLength: password.length >= 8,
+    hasLetter: /[a-zA-Z]/.test(password),
+    hasNumber: /\d/.test(password),
+    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  });
 
-    // Calculate strength
+  // Call only from event handlers (updates state)
+  const updatePasswordStrength = (password: string) => {
+    const rules = getPasswordRules(password);
     const passed = Object.values(rules).filter(Boolean).length;
     if (passed <= 2) setPasswordStrength('weak');
     else if (passed === 3) setPasswordStrength('medium');
     else setPasswordStrength('strong');
-
     return rules;
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const password = e.target.value;
     setFormData({ ...formData, newPassword: password });
-    
+
     if (password) {
-      validatePassword(password);
+      updatePasswordStrength(password);
     } else {
       setPasswordStrength(null);
     }
 
-    // Clear error when user types
     if (errors.newPassword) {
       setErrors({ ...errors, newPassword: '' });
     }
@@ -80,7 +79,7 @@ export default function NewPasswordPage() {
       newErrors.otp = 'OTP는 6자리 숫자여야 합니다';
     }
 
-    const rules = validatePassword(formData.newPassword);
+    const rules = getPasswordRules(formData.newPassword);
 
     if (!formData.newPassword) {
       newErrors.newPassword = '새 비밀번호를 입력해주세요';
@@ -180,7 +179,7 @@ export default function NewPasswordPage() {
     );
   }
 
-  const rules = formData.newPassword ? validatePassword(formData.newPassword) : null;
+  const rules = formData.newPassword ? getPasswordRules(formData.newPassword) : null;
 
   return (
     <Layout>
