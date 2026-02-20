@@ -1,0 +1,40 @@
+databases:
+  - name: fiscus-db
+    databaseName: fiscus
+    user: fiscus_user
+    plan: free
+
+services:
+  - type: web
+    name: fiscus-backend
+    runtime: node
+    rootDir: apps/backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DB_HOST
+        fromDatabase:
+          name: fiscus-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: fiscus-db
+          property: port
+      - key: DB_USERNAME
+        fromDatabase:
+          name: fiscus-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: fiscus-db
+          property: password
+      - key: DB_DATABASE
+        fromDatabase:
+          name: fiscus-db
+          property: database
+      - key: JWT_SECRET
+        generateValue: true  # auto-generates a secure random value
