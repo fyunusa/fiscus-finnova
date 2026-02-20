@@ -17,6 +17,7 @@ import { NiceVerificationService } from './services/nice-verification.service';
 import { PaygateVerificationService } from './services/paygate-verification.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { AuthController } from './controllers/auth.controller';
 import { VerificationController } from './controllers/verification.controller';
 import { EmailService } from '../external-api/services/email.service';
@@ -56,6 +57,7 @@ import { UsersModule } from '../users/users.module';
     SmsService,
     JwtStrategy,
     JwtAuthGuard,
+    RolesGuard,
   ],
   controllers: [AuthController, VerificationController],
   exports: [
@@ -65,6 +67,7 @@ import { UsersModule } from '../users/users.module';
     NiceVerificationService,
     PaygateVerificationService,
     JwtAuthGuard,
+    RolesGuard,
   ],
 })
 export class AuthModule {}

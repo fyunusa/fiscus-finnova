@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Button, Badge } from '@/components/ui';
 import Link from 'next/link';
 import { ChevronRight, CheckCircle, DollarSign, FileText, User, ArrowRight, MapPin } from 'lucide-react';
 import { loanService } from '@/services/loanService';
-import { openAddressSearch, loadDaumPostcodeScript } from '@/services/daum.service';
+import AddressSearch from '@/components/AddressSearch';
+import MapDisplay from '@/components/MapDisplay';
+import PropertyValuation from '@/components/PropertyValuation';
 
 interface FormData {
   loanProductId: string;
@@ -18,6 +21,8 @@ interface FormData {
   collateralDetails: string;
   applicantNotes: string;
   fundingAccountId: string;
+  collateralLat?: number;
+  collateralLng?: number;
 }
 
 interface LoanProductDisplay {
@@ -65,7 +70,16 @@ const collateralTypes = [
   '기타',
 ];
 
-export default function ApplicationPage() {
+export default function ApplicationPageWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ApplicationPageContent />
+    </Suspense>
+  );
+}
+
+function ApplicationPageContent() {
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
   const [applicationNo, setApplicationNo] = useState<string>('');
@@ -85,14 +99,9 @@ export default function ApplicationPage() {
     collateralDetails: '',
     applicantNotes: '',
     fundingAccountId: '',
+    collateralLat: undefined,
+    collateralLng: undefined,
   });
-
-  // Load Daum Postcode script on component mount
-  useEffect(() => {
-    loadDaumPostcodeScript().catch((error) => {
-      console.error('Failed to load Daum Postcode:', error);
-    });
-  }, []);
 
   // Load loan products from API
   useEffect(() => {
@@ -141,6 +150,37 @@ export default function ApplicationPage() {
     loadAccounts();
   }, []);
 
+  // Handle property query parameter from apartment page
+  useEffect(() => {
+    if (!searchParams) return;
+    
+    const propertyId = searchParams.get('property');
+    if (propertyId && loanProducts.length > 0) {
+      console.log('🏠 Auto-populating from property ID:', propertyId);
+      
+      // Find the apartment loan product (assuming first product)
+      const apartmentProduct = loanProducts.find(p => p.name.toLowerCase().includes('아파트')) || loanProducts[0];
+      
+      if (apartmentProduct) {
+        // Update form with apartment product
+        setFormData(prev => ({
+          ...prev,
+          loanProductId: apartmentProduct.id,
+          requestedLoanAmount: apartmentProduct.maxAmount * 0.8, // Suggest 80% of max
+          loanPeriod: 24, // Default to 24 months
+        }));
+        
+        // Schedule progression to step 2 after 1 second
+        const timer = setTimeout(() => {
+          console.log('📍 Auto-advancing to step 2 with pre-filled data');
+          setCurrentStep(2);
+        }, 1000);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [searchParams, loanProducts]);
+
   const handleNext = () => {
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
@@ -154,18 +194,25 @@ export default function ApplicationPage() {
   };
 
   const handleInputChange = (field: keyof FormData, value: any) => {
+    console.log(`🔄 handleInputChange: ${field} = ${value}`);
     setFormData({ ...formData, [field]: value });
   };
 
-  const handleAddressSearch = async () => {
-    try {
-      const result = await openAddressSearch();
-      handleInputChange('collateralAddress', result.address);
-      console.log('✅ Address selected:', result);
-    } catch (error) {
-      console.error('🚫 Address search failed:', error);
-      alert('주소 검색 기능을 로드할 수 없습니다. 잠시 후 다시 시도해주세요.');
-    }
+  const handleAddressSelect = (address: string, lat: number, lng: number) => {
+    console.log('📍 Address select callback received:', { address, lat, lng });
+    // Update all three fields at once to avoid state update race conditions
+    setFormData(prev => ({
+      ...prev,
+      collateralAddress: address,
+      collateralLat: lat,
+      collateralLng: lng,
+    }));
+    console.log('✅ Address selected and form updating:', { address, lat, lng });
+  };
+
+  const handleCollateralValidation = (validation: any) => {
+    console.log('Collateral validation:', validation);
+    // You can store validation results if needed
   };
 
   const handleSubmit = async () => {
@@ -176,7 +223,7 @@ export default function ApplicationPage() {
       const response = await loanService.createApplication({
         loanProductId: formData.loanProductId,
         requestedLoanAmount: formData.requestedLoanAmount,
-        loanPeriod: formData.loanPeriod,
+        requestedLoanPeriod: formData.loanPeriod,
         collateralType: formData.collateralType,
         collateralValue: formData.collateralValue,
         collateralAddress: formData.collateralAddress,
@@ -199,6 +246,31 @@ export default function ApplicationPage() {
   const currentLTV = formData.collateralValue ? (formData.requestedLoanAmount / formData.collateralValue) * 100 : 0;
   const maxLTVExceeded = currentLTV > 70 && currentLTV > 0;
   const maxLoanByLTV = formData.collateralValue ? Math.floor(formData.collateralValue * 0.7) : 0;
+  
+  // Memoize validation checks to prevent unnecessary re-renders
+  const step2Validations = useMemo(() => ({
+    hasLoanAmount: !!formData.requestedLoanAmount,
+    hasCollateralValue: !!formData.collateralValue,
+    hasCollateralType: !!formData.collateralType,
+    hasCollateralAddress: !!formData.collateralAddress,
+    hasFundingAccount: !!formData.fundingAccountId,
+    isLoanAmountValid: isLoanAmountValid,
+    ltv_under_70: !maxLTVExceeded,
+  }), [formData, isLoanAmountValid, maxLTVExceeded]);
+  
+  React.useEffect(() => {
+    if (currentStep === 2) {
+      console.log('🔍 Step 2 Validation Status:', step2Validations);
+      console.log('📊 Form Data:', {
+        requestedLoanAmount: formData.requestedLoanAmount,
+        collateralValue: formData.collateralValue,
+        collateralType: formData.collateralType,
+        collateralAddress: formData.collateralAddress,
+        fundingAccountId: formData.fundingAccountId,
+        currentLTV: currentLTV.toFixed(1) + '%',
+      });
+    }
+  }, [currentStep, formData, step2Validations, currentLTV]);
   
   const canProceed =
     currentStep === 1 ? formData.loanProductId :
@@ -360,30 +432,51 @@ export default function ApplicationPage() {
                       <label className="block text-sm font-semibold text-gray-900 mb-2">
                         담보 주소 *
                       </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={formData.collateralAddress}
-                          onChange={(e) => handleInputChange('collateralAddress', e.target.value)}
-                          placeholder="주소를 검색하세요"
-                          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        />
-                        <Button
-                          onClick={handleAddressSearch}
-                          variant="outline"
-                          disabled={loading}
-                          className="flex-shrink-0"
-                        >
-                          <MapPin className="w-4 h-4 mr-2" />
-                          검색
-                        </Button>
-                      </div>
+                      <AddressSearch
+                        onSelectAddress={handleAddressSelect}
+                        placeholder="주소를 검색하세요"
+                        defaultValue={formData.collateralAddress}
+                      />
                       {formData.collateralAddress && (
                         <p className="text-xs text-green-600 mt-1">
                           ✓ 주소: {formData.collateralAddress}
                         </p>
                       )}
                     </div>
+
+                    {/* Map Display - Show selected property location */}
+                    {formData.collateralAddress && formData.collateralLat && formData.collateralLng && (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">
+                          📍 담보 위치 지도
+                        </label>
+                        <MapDisplay
+                          markers={[{
+                            lat: formData.collateralLat,
+                            lng: formData.collateralLng,
+                            title: formData.collateralAddress,
+                          }]}
+                          center={{ lat: formData.collateralLat, lng: formData.collateralLng }}
+                          zoom={15}
+                          height="300px"
+                        />
+                      </div>
+                    )}
+
+                    {/* Property Valuation - Show market data and collateral validation */}
+                    {formData.collateralAddress && (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900 mb-2">
+                          💎 시세 정보 및 담보 검증
+                        </label>
+                        <PropertyValuation
+                          address={formData.collateralAddress}
+                          claimedValue={formData.collateralValue}
+                          onValidation={handleCollateralValidation}
+                          readOnly={false}
+                        />
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -556,6 +649,22 @@ export default function ApplicationPage() {
                       ✓ 정보가 정확한지 확인 후 신청해주세요. 신청 후 담당자가 24시간 이내에 연락드립니다.
                     </p>
                   </div>
+                </div>
+              )}
+
+              {/* Step 2 Validation Messages */}
+              {currentStep === 2 && !canProceed && (
+                <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-8">
+                  <p className="text-sm font-semibold text-yellow-900 mb-2">⚠️ 다음 필드를 완성해주세요:</p>
+                  <ul className="text-sm text-yellow-800 space-y-1">
+                    {!step2Validations.hasLoanAmount && <li>• 대출 신청 금액을 입력해주세요</li>}
+                    {!step2Validations.hasCollateralValue && <li>• 담보 평가액을 입력해주세요</li>}
+                    {!step2Validations.hasCollateralType && <li>• 담보 유형을 선택해주세요</li>}
+                    {!step2Validations.hasCollateralAddress && <li>• 담보 주소를 검색해서 선택해주세요</li>}
+                    {!step2Validations.hasFundingAccount && <li>• 대출금 수령 계좌를 선택해주세요</li>}
+                    {!step2Validations.isLoanAmountValid && <li>• 대출 금액이 상품의 최소/최대 한도를 벗어났습니다</li>}
+                    {!step2Validations.ltv_under_70 && <li>• LTV가 70%를 초과합니다 (담보 가치를 올리거나 신청액을 낮춰주세요)</li>}
+                  </ul>
                 </div>
               )}
 

@@ -4,7 +4,7 @@ import React from 'react';
 import Layout from '@/components/Layout';
 import { Card, Button } from '@/components/ui';
 import Link from 'next/link';
-import { Home, Calculator, FileText, Phone } from 'lucide-react';
+import { Home, Calculator, FileText, Phone, ClipboardList } from 'lucide-react';
 
 export default function LoanPage() {
   const [loanAmount, setLoanAmount] = React.useState(50000000);
@@ -180,18 +180,25 @@ export default function LoanPage() {
           </Card>
 
           {/* CTA Buttons */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
             <Link href="/loan/apartment">
               <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-xl text-lg transition-all">
                 <Calculator className="inline mr-2" size={20} />
-                한도 조회 및 상담 신청
+                한도 조회
+              </Button>
+            </Link>
+
+            <Link href="/loan/my-loans">
+              <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-4 px-6 rounded-xl text-lg transition-all">
+                <ClipboardList className="inline mr-2" size={20} />
+                내 대출
               </Button>
             </Link>
 
             <Link href="/loan/application">
               <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-xl text-lg transition-all">
                 <FileText className="inline mr-2" size={20} />
-                바로 신청하기
+                신청하기
               </Button>
             </Link>
           </div>

@@ -5,7 +5,10 @@ import Layout from '@/components/Layout';
 import { Button, Badge } from '@/components/ui';
 import Link from 'next/link';
 import { loanService, LoanApplication } from '@/services/loanService';
+import { PaymentModal } from '@/components/PaymentModal';
+import { LoanCardItem } from '@/components/LoanCardItem';
 import { LayoutGrid, List, DollarSign, Calendar, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
+import { formatCurrencyShort } from '@/lib/formatCurrency';
 
 export default function MyLoansPage() {
   const [data, setData] = useState<LoanApplication[]>([]);
@@ -14,6 +17,19 @@ export default function MyLoansPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedLoanAccountId, setSelectedLoanAccountId] = useState<string | null>(null);
+
+  const handleOpenPaymentModal = (loanAccountId: string) => {
+    setSelectedLoanAccountId(loanAccountId);
+    setPaymentModalOpen(true);
+  };
+
+  const handlePaymentSuccess = (transactionId: string) => {
+    // Refresh the loan data
+    setSelectedStatus(selectedStatus === 'all' ? 'all' : selectedStatus);
+    setPaymentModalOpen(false);
+  };
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -167,67 +183,14 @@ export default function MyLoansPage() {
               {/* Grid View */}
               {viewMode === 'grid' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredData.map((item) => {
-                    const statusInfo = getStatusColor(item.status);
-                    const StatusIcon = statusInfo.icon;
-                    return (
-                      <div
-                        key={item.id}
-                        className={`${statusInfo.bg} border-2 ${statusInfo.border} rounded-xl p-6 hover:shadow-lg transition-all`}
-                      >
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <p className="text-xs text-gray-600 font-semibold mb-1">신청번호</p>
-                            <p className="text-lg font-bold text-gray-900">{item.applicationNo}</p>
-                          </div>
-                          <Badge className={`${statusInfo.badge} px-3 py-1 text-xs font-semibold`}>
-                            {statusInfo.label}
-                          </Badge>
-                        </div>
-
-                        <div className="space-y-4 mb-6 pb-6 border-b border-gray-200 border-opacity-50">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                              <DollarSign size={20} className="text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-600">신청금액</p>
-                              <p className="font-bold text-gray-900">
-                                ₩{(item.requestedLoanAmount / 100000000).toFixed(1)}억
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                              <TrendingUp size={20} className="text-green-600" />
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-600">신청일</p>
-                              <p className="font-bold text-gray-900">
-                                {new Date(item.createdAt).toLocaleDateString('ko-KR')}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Link href={`/loan/application/${item.id}`} className="flex-1">
-                            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg">
-                              상세보기
-                            </Button>
-                          </Link>
-                          {item.status === 'pending' && (
-                            <Link href={`/loan/application/${item.id}/edit`} className="flex-1">
-                              <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg">
-                                수정
-                              </Button>
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {filteredData.map((item) => (
+                    <LoanCardItem
+                      key={item.id}
+                      item={item}
+                      getStatusColor={getStatusColor}
+                      onOpenPaymentModal={handleOpenPaymentModal}
+                    />
+                  ))}
                 </div>
               )}
 
@@ -254,7 +217,7 @@ export default function MyLoansPage() {
                                 {item.applicationNo}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap font-semibold text-gray-900">
-                                ₩{(item.requestedLoanAmount / 100000000).toFixed(1)}억
+                                {formatCurrencyShort(item.requestedLoanAmount)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <Badge className={statusInfo.badge}>
@@ -270,6 +233,23 @@ export default function MyLoansPage() {
                                     상세
                                   </Button>
                                 </Link>
+                                {(item.status === 'active' || item.status === 'approved') && item.loanAccountId && (
+                                  <Button
+                                    onClick={() => handleOpenPaymentModal(item.loanAccountId!)}
+                                    className="text-teal-600 hover:text-teal-700 bg-teal-50 hover:bg-teal-100 px-3 py-1 rounded text-xs"
+                                  >
+                                    결제
+                                  </Button>
+                                )}
+                                {(item.status === 'active' || item.status === 'approved') && !item.loanAccountId && (
+                                  <Button
+                                    disabled
+                                    className="text-gray-400 bg-gray-100 px-3 py-1 rounded text-xs cursor-not-allowed"
+                                    title="대출 실행 준비 중입니다"
+                                  >
+                                    준비중
+                                  </Button>
+                                )}
                                 {item.status === 'pending' && (
                                   <Link href={`/loan/application/${item.id}/edit`}>
                                     <Button className="text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-3 py-1 rounded text-xs">
@@ -309,6 +289,16 @@ export default function MyLoansPage() {
           )}
         </div>
       </div>
+
+      <PaymentModal
+        isOpen={paymentModalOpen}
+        loanAccountId={selectedLoanAccountId || ''}
+        onClose={() => {
+          setPaymentModalOpen(false);
+          setSelectedLoanAccountId(null);
+        }}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
     </Layout>
   );
 }

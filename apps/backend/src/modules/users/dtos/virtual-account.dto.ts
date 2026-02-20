@@ -53,6 +53,32 @@ export class VirtualAccountResponseDto {
   lastTransactionAt?: Date;
 }
 
+// Virtual Account Initiation Response DTO (when user starts checkout)
+export class VirtualAccountInitiationResponseDto {
+  requestId!: string; // VirtualAccountRequest ID
+  paymentKey!: string; // Toss payment key
+  orderId!: string;
+  checkoutUrl!: string; // URL for user to complete payment
+  amount!: number;
+  status!: 'READY' | 'DONE';
+  requiresUserAction!: boolean; // true if user needs to complete checkout
+  createdAt!: Date;
+}
+
+// Virtual Account Completion Response DTO (after user completes checkout)
+export class VirtualAccountCompletionResponseDto {
+  id!: string;
+  userId!: string;
+  accountNumber!: string;
+  accountName!: string;
+  status!: string;
+  availableBalance!: number;
+  bankCode?: string;
+  bankName?: string;
+  createdAt!: Date;
+  completedAt!: Date;
+}
+
 // Transaction Response DTO
 export class VirtualAccountTransactionResponseDto {
   id!: string;

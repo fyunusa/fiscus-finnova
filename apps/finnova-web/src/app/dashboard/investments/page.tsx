@@ -78,7 +78,7 @@ export default function InvestmentDashboardPage() {
       setSummary(summaryResponse.data);
       setRepaymentStatus(repaymentResponse.data);
       setInvestmentHistory(historyResponse.data);
-      setVirtualAccountInfo(accountResponse.data);
+      setVirtualAccountInfo(accountResponse.data || null);
       setDepositHistory(transactionResponse.data);
       setFavoriteInvestments(favoritesResponse.data || []);
       

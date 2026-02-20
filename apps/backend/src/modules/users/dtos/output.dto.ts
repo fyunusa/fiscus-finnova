@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserType, UserStatus } from '../enums/user.enum';
+import { UserType, UserStatus, UserRole } from '../enums/user.enum';
 
 export class UserOutputDto {
   @ApiProperty({ format: 'uuid' })
@@ -19,6 +19,9 @@ export class UserOutputDto {
 
   @ApiProperty({ enum: UserType })
   userType!: UserType;
+
+  @ApiProperty({ enum: UserRole })
+  role!: UserRole;
 
   @ApiProperty({ enum: UserStatus })
   status!: UserStatus;

@@ -56,7 +56,7 @@ export class AuthService {
     const payload: JwtPayload = {
       id: user.id,
       email: user.email,
-      role: 'user',
+      role: user.role,
     };
     return this.jwtService.sign(payload, {
       secret: process.env.JWT_SECRET,
@@ -68,7 +68,7 @@ export class AuthService {
     const payload: JwtPayload = {
       id: user.id,
       email: user.email,
-      role: 'user',
+      role: user.role,
     };
     return this.jwtService.sign(payload, {
       secret: process.env.JWT_SECRET,
@@ -124,6 +124,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         userType: user.userType,
+        role: user.role,
         hasVerifiedBankAccount,
         hasKYCDocument,
         hasTransactionPIN,

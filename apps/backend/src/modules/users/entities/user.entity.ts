@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-import { UserType, UserStatus, SignupStep } from '../enums/user.enum';
+import { UserType, UserStatus, SignupStep, UserRole } from '../enums/user.enum';
 
 @Entity('users')
 @Index(['email'], { unique: true })
@@ -35,6 +35,13 @@ export class User {
     default: UserType.INDIVIDUAL,
   })
   userType!: UserType;
+
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER,
+  })
+  role!: UserRole;
 
   @Column({
     type: 'enum',

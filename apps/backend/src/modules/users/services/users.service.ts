@@ -96,6 +96,7 @@ export class UsersService {
       email: user.email,
       phoneNumber: user.phoneNumber,
       userType: user.userType,
+      role: user.role,
       status: user.status,
       emailVerified: user.emailVerified,
       createdAt: user.createdAt,

@@ -6,6 +6,7 @@ import { KYCDocument } from './entities/kyc-document.entity';
 import { TransactionPIN } from './entities/transaction-pin.entity';
 import { VirtualAccount } from './entities/virtual-account.entity';
 import { VirtualAccountTransaction } from './entities/virtual-account-transaction.entity';
+import { VirtualAccountRequest } from './entities/virtual-account-request.entity';
 import { UsersService } from './services/users.service';
 import { BankAccountService } from './services/bank-account.service';
 import { KYCDocumentService } from './services/kyc-document.service';
@@ -24,6 +25,7 @@ import { ExternalApiModule } from '../external-api/external-api.module';
       TransactionPIN,
       VirtualAccount,
       VirtualAccountTransaction,
+      VirtualAccountRequest,
     ]),
     ExternalApiModule,
   ],

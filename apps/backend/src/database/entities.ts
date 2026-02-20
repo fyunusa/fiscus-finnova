@@ -11,6 +11,7 @@ import { KYCDocument } from '@modules/users/entities/kyc-document.entity';
 import { TransactionPIN } from '@modules/users/entities/transaction-pin.entity';
 import { VirtualAccount } from '@modules/users/entities/virtual-account.entity';
 import { VirtualAccountTransaction } from '@modules/users/entities/virtual-account-transaction.entity';
+import { VirtualAccountRequest } from '@modules/users/entities/virtual-account-request.entity';
 import { PasswordResetOTP } from '@modules/auth/entities/password-reset-otp.entity';
 import { EmailVerification } from '@modules/auth/entities/email-verification.entity';
 import { PhoneVerification } from '@modules/auth/entities/sms-verification-code.entity';
@@ -35,6 +36,7 @@ export {
   TransactionPIN,
   VirtualAccount,
   VirtualAccountTransaction,
+  VirtualAccountRequest,
   PasswordResetOTP,
   EmailVerification,
   PhoneVerification,
@@ -57,6 +59,7 @@ export const ALL_ENTITIES = [
   KYCDocument,
   TransactionPIN,
   VirtualAccount,
+  VirtualAccountRequest,
   VirtualAccountTransaction,
   PasswordResetOTP,
   EmailVerification,

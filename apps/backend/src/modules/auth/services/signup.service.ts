@@ -327,7 +327,7 @@ export class SignupService {
     const payload = {
       id: user.id,
       email: user.email,
-      role: 'user',
+      role: user.role,
     };
     return this.jwtService.sign(payload, {
       secret: process.env.JWT_SECRET,
@@ -342,7 +342,7 @@ export class SignupService {
     const payload = {
       id: user.id,
       email: user.email,
-      role: 'user',
+      role: user.role,
     };
     return this.jwtService.sign(payload, {
       secret: process.env.JWT_SECRET,

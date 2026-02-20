@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import { Card, Button, Badge } from '@/components/ui';
 import Link from 'next/link';
 import { Home, DollarSign, TrendingUp, MapPin, Zap } from 'lucide-react';
+import { formatCurrencyShort } from '@/lib/formatCurrency';
 
 interface ApartmentProperty {
   id: string;
@@ -170,13 +171,13 @@ export default function ApartmentPage() {
                           <div>
                             <p className="text-gray-600 text-xs font-medium mb-1">부동산 가격</p>
                             <p className="text-lg font-bold text-gray-900">
-                              ₩{(property.price / 100000000).toFixed(1)}억
+                              {formatCurrencyShort(property.price)}
                             </p>
                           </div>
                           <div>
                             <p className="text-gray-600 text-xs font-medium mb-1">최대 대출액</p>
                             <p className="text-lg font-bold text-blue-600">
-                              ₩{(property.maxLoanAmount / 100000000).toFixed(1)}억
+                              {formatCurrencyShort(property.maxLoanAmount)}
                             </p>
                           </div>
                         </div>

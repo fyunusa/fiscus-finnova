@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Input, Alert } from '@/components/ui';
-import { CreditCard, CheckCircle, Trash2, Star, Plus, AlertCircle, Loader } from 'lucide-react';
+import { CreditCard, CheckCircle, Trash2, Star, Plus, AlertCircle, Loader, Copy, XCircle } from 'lucide-react';
 import { getBankAccounts, createBankAccount, setDefaultBankAccount, deleteBankAccount, BankAccount } from '@/services/user.service';
+import { getVirtualAccountInfo, createVirtualAccount, VirtualAccountInfo } from '@/services/virtual-account.service';
 import { getAccessToken } from '@/lib/auth';
+import { getPendingVirtualAccountRequest, checkVirtualAccountStatus, confirmVirtualAccountPayment } from '@/services/virtual-account.service';
 
 const SUPPORTED_BANKS = [
   { code: 'bk_111', name: '국민은행' },
@@ -20,10 +22,15 @@ const SUPPORTED_BANKS = [
 export default function BankAccountsPage() {
   const router = useRouter();
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [virtualAccount, setVirtualAccount] = useState<VirtualAccountInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [isCreatingVirtualAccount, setIsCreatingVirtualAccount] = useState(false);
+  const [isRetryingCompletion, setIsRetryingCompletion] = useState(false);
+  const [pendingAccountMessage, setPendingAccountMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
+  const [copiedAccountNumber, setCopiedAccountNumber] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -32,30 +39,80 @@ export default function BankAccountsPage() {
     accountHolder: '',
   });
 
-  // Load bank accounts on mount
+  // Load bank accounts and virtual account on mount
   useEffect(() => {
-    loadBankAccounts();
+    loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadBankAccounts = async () => {
+  // Handle payment success callback from Toss
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const paymentStatus = searchParams.get('payment');
+    const paymentKey = searchParams.get('paymentKey');
+
+    if (paymentStatus === 'success' && paymentKey) {
+      completeVirtualAccountCreation(paymentKey);
+      // Clean up URL
+      window.history.replaceState({}, document.title, '/account/bank-accounts');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadData = async () => {
     try {
       setLoading(true);
       setError('');
+      setPendingAccountMessage('');
       
       const token = getAccessToken();
 
       if (!token) {
+        // Clear pending state on logout
+        sessionStorage.removeItem('vaRequestId');
+        setVirtualAccount(null);
         router.push('/login');
         return;
       }
 
-      const response = await getBankAccounts(token);
-      setAccounts(response.data || []);
+      const [accountsResponse, vaResponse, pendingRequestResponse] = await Promise.all([
+        getBankAccounts(token),
+        getVirtualAccountInfo(),
+        getPendingVirtualAccountRequest(),
+      ]);
+
+      setAccounts(accountsResponse.data || []);
+      
+      // Handle virtual account response
+      if (vaResponse.success && vaResponse.data) {
+        // Virtual account exists
+        setVirtualAccount(vaResponse.data);
+        setPendingAccountMessage('');
+        // Clear any pending request from sessionStorage since account is ready
+        sessionStorage.removeItem('vaRequestId');
+      } else if (!vaResponse.success) {
+        // Virtual account not found - check if there's a pending request from backend
+        setVirtualAccount(null);
+        
+        if (pendingRequestResponse.success && pendingRequestResponse.data) {
+          // There's a pending request from the backend
+          const pendingRequest = pendingRequestResponse.data;
+          setPendingAccountMessage(pendingRequest.message);
+          
+          // Store the requestId for later use if needed
+          if (!sessionStorage.getItem('vaRequestId')) {
+            sessionStorage.setItem('vaRequestId', pendingRequest.requestId);
+          }
+        } else {
+          // No pending request and no account
+          setPendingAccountMessage('');
+          sessionStorage.removeItem('vaRequestId');
+        }
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load bank accounts';
+      const message = err instanceof Error ? err.message : 'Failed to load data';
       setError(message);
-      console.error('Error loading bank accounts:', err);
+      console.error('Error loading data:', err);
     } finally {
       setLoading(false);
     }
@@ -87,7 +144,7 @@ export default function BankAccountsPage() {
       if (response.success) {
         setSuccess('Bank account added successfully!');
         setFormData({ bankCode: '', accountNumber: '', accountHolder: '' });
-        await loadBankAccounts();
+        await loadData();
         
         // Clear success message after 3 seconds
         setTimeout(() => setSuccess(''), 3000);
@@ -113,7 +170,7 @@ export default function BankAccountsPage() {
 
       await setDefaultBankAccount(accountId, token);
       setSuccess('Default account updated!');
-      await loadBankAccounts();
+      await loadData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update default account';
@@ -135,12 +192,146 @@ export default function BankAccountsPage() {
 
       await deleteBankAccount(accountId, token);
       setSuccess('Account deleted successfully!');
-      await loadBankAccounts();
+      await loadData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete account';
       setError(message);
     }
+  };
+
+  const completeVirtualAccountCreation = async (paymentKey?: string) => {
+    try {
+      // Get the requestId from sessionStorage
+      const requestId = sessionStorage.getItem('vaRequestId');
+      if (!requestId) {
+        console.warn('No request ID found in sessionStorage');
+        return;
+      }
+
+      // Call the confirmation endpoint to confirm payment and issue account
+      const response = await confirmVirtualAccountPayment(requestId);
+
+      if (response.success) {
+        // Check response type
+        const data = response.data as any;
+        if (data.accountNumber) {
+          // Account successfully created!
+          setVirtualAccount(data);
+          setPendingAccountMessage('');
+          setError('');
+          setSuccess('🎉 Virtual account created successfully!');
+          setTimeout(() => setSuccess(''), 5000);
+          // Clear the requestId from sessionStorage
+          sessionStorage.removeItem('vaRequestId');
+        } else if (data.status === 'WAITING_DEPOSIT') {
+          // Payment confirmed but awaiting approval in dashboard
+          setPendingAccountMessage(
+            `${data.message} ${data.nextSteps ? '\n\n' + data.nextSteps : ''}`,
+          );
+          setError('');
+          // Keep the requestId so user can check status later
+          sessionStorage.setItem('vaRequestId', requestId);
+        } else if (data.status === 'PENDING') {
+          // Still pending from initial checkout
+          setPendingAccountMessage(data.message);
+          setError('');
+          sessionStorage.setItem('vaRequestId', requestId);
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to confirm virtual account';
+      console.error('Error confirming virtual account:', err);
+      setError(message);
+    }
+  };
+
+  const handleCheckAccountStatus = async () => {
+    try {
+      setIsRetryingCompletion(true);
+      setError('');
+
+      // Get the requestId from sessionStorage
+      const requestId = sessionStorage.getItem('vaRequestId');
+      if (!requestId) {
+        setError('No pending request found');
+        setIsRetryingCompletion(false);
+        return;
+      }
+
+      // Call confirmation endpoint to check payment status and confirm if needed
+      const response = await confirmVirtualAccountPayment(requestId);
+
+      if (response.success) {
+        // Check if the response contains actual account data
+        const data = response.data as any;
+        if (data.accountNumber) {
+          // Account successfully created!
+          setVirtualAccount(data);
+          setPendingAccountMessage('');
+          setSuccess('🎉 Your virtual account is now ready!');
+          setTimeout(() => setSuccess(''), 5000);
+          // Clear the requestId from sessionStorage
+          sessionStorage.removeItem('vaRequestId');
+        } else if (data.status === 'WAITING_DEPOSIT') {
+          // Payment confirmed but awaiting approval
+          setPendingAccountMessage(
+            `${data.message} ${data.nextSteps ? '\n\n' + data.nextSteps : ''}`,
+          );
+        } else if (data.status === 'PENDING') {
+          // Still pending, keep the message
+          setPendingAccountMessage(data.message);
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to check account status';
+      console.error('Error checking account status:', err);
+      setError(message);
+    } finally {
+      setIsRetryingCompletion(false);
+    }
+  };
+
+  const handleCreateVirtualAccount = async () => {
+    try {
+      setIsCreatingVirtualAccount(true);
+      setError('');
+      setSuccess('');
+
+      const response = await createVirtualAccount();
+
+      if (response.success && response.data) {
+        // Check if this is a checkout URL response (new account requesting payment)
+        const data = response.data as any;
+        if (data.checkoutUrl && data.requiresUserAction) {
+          // Show success message and redirect to checkout
+          setSuccess('Redirecting to payment gateway...');
+          // Store the requestId in sessionStorage for later use
+          sessionStorage.setItem('vaRequestId', data.requestId);
+          // Redirect to checkout URL
+          setTimeout(() => {
+            window.location.href = data.checkoutUrl;
+          }, 1000);
+        } else {
+          // This is a completed virtual account
+          setVirtualAccount(data);
+          setSuccess('Virtual account created successfully!');
+          setTimeout(() => setSuccess(''), 3000);
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create virtual account';
+      setError(message);
+      console.error('Error creating virtual account:', err);
+    } finally {
+      setIsCreatingVirtualAccount(false);
+    }
+  };
+
+  const handleCopyAccountNumber = (accountNumber: string) => {
+    navigator.clipboard.writeText(accountNumber);
+    setCopiedAccountNumber(true);
+    setTimeout(() => setCopiedAccountNumber(false), 2000);
   };
 
   const getStatusBadge = (status: string) => {
@@ -166,6 +357,115 @@ export default function BankAccountsPage() {
           {/* Error/Success Messages */}
           {error && <Alert type="error" message={error} className="mb-6" />}
           {success && <Alert type="success" message={success} className="mb-6" />}
+
+          {/* Virtual Account Section */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader className="animate-spin text-green-600" size={32} />
+            </div>
+          ) : (
+            <Card className={`${virtualAccount ? 'bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-600' : 'bg-gradient-to-r from-orange-50 to-orange-100 border-l-4 border-orange-600'} shadow-md p-8 mb-8`}>
+              <div className="flex items-start gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-4">
+                    {virtualAccount ? (
+                      <>
+                        <CheckCircle className="text-blue-600" size={20} />
+                        <h2 className="text-2xl font-bold text-gray-900">Virtual Account</h2>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="text-orange-600" size={20} />
+                        <h2 className="text-2xl font-bold text-gray-900">Create Virtual Account</h2>
+                      </>
+                    )}
+                  </div>
+
+                  {virtualAccount ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Account Number</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-lg font-mono">{virtualAccount.accountNumber}</p>
+                          <button
+                            onClick={() => handleCopyAccountNumber(virtualAccount.accountNumber)}
+                            className="p-1 hover:bg-blue-200 rounded transition"
+                            title="Copy account number"
+                          >
+                            <Copy size={16} className="text-blue-600" />
+                          </button>
+                        </div>
+                        {copiedAccountNumber && (
+                          <p className="text-xs text-blue-600 mt-1">Copied!</p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Account Name</p>
+                        <p className="font-semibold text-lg">{virtualAccount.accountName}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Available Balance</p>
+                        <p className="font-semibold text-lg">₩{(virtualAccount.availableBalance / 1000).toFixed(0)}K</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Status</p>
+                        <span className="px-3 py-1 bg-blue-200 text-blue-800 text-sm rounded-full font-medium">Active</span>
+                      </div>
+                    </div>
+                  ) : pendingAccountMessage ? (
+                    <div className="space-y-4">
+                      <Alert type="warning">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle size={20} className="text-yellow-600 flex-shrink-0 mt-1" />
+                          <div>
+                            <p className="font-semibold text-yellow-900 mb-2">Virtual Account Pending</p>
+                            <p className="text-yellow-800 text-sm mb-4">{pendingAccountMessage}</p>
+                            <Button
+                              onClick={handleCheckAccountStatus}
+                              disabled={isRetryingCompletion}
+                              className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                            >
+                              {isRetryingCompletion ? (
+                                <>
+                                  <Loader size={16} className="animate-spin" />
+                                  Checking...
+                                </>
+                              ) : (
+                                <>
+                                  Check Status
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </Alert>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-gray-700 font-medium">You don&apos;t have a virtual account yet. Create one to enable higher transaction limits and better visibility of your funds.</p>
+                      <Button
+                        onClick={handleCreateVirtualAccount}
+                        disabled={isCreatingVirtualAccount}
+                        className="bg-orange-600 hover:bg-orange-700 text-white py-2 px-6 rounded font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        {isCreatingVirtualAccount ? (
+                          <>
+                            <Loader size={18} className="animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={18} />
+                            Create Virtual Account
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Default Account */}
           {getDefaultAccount(accounts) && (

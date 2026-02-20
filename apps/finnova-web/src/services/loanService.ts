@@ -28,6 +28,8 @@ export interface LoanApplication {
   userId: string;
   loanProductId: string;
   requestedLoanAmount: number;
+  requestedLoanPeriod: number;
+  requestedInterestRate: number | null;
   approvedLoanAmount: number | null;
   approvedInterestRate: number | null;
   approvedLoanPeriod: number | null;
@@ -46,6 +48,7 @@ export interface LoanApplication {
   submittedAt: string | null;
   approvedAt: string | null;
   rejectedAt: string | null;
+  loanAccountId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,7 +56,7 @@ export interface LoanApplication {
 export interface CreateLoanApplicationDto {
   loanProductId: string;
   requestedLoanAmount: number;
-  loanPeriod: number;
+  requestedLoanPeriod: number;
   collateralType: string;
   collateralValue: number;
   collateralAddress: string;

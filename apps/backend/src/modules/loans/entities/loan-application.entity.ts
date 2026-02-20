@@ -45,11 +45,17 @@ export class LoanApplication {
   @Column({ type: 'bigint' })
   requestedLoanAmount!: number; // 신청 대출액 (원)
 
+  @Column({ type: 'int' })
+  requestedLoanPeriod!: number; // 신청 대출 기간 (개월) - User selected term
+
+  @Column({ type: 'float', nullable: true })
+  requestedInterestRate: number | null = null; // 신청 시점의 금리 (연 %) - Rate shown to user
+
   @Column({ type: 'bigint', nullable: true })
   approvedLoanAmount: number | null = null; // 승인 대출액 (원)
 
   @Column({ type: 'float', nullable: true })
-  approvedInterestRate: number | null = null; // 승인 금리 (연 %)
+  approvedInterestRate: number | null = null; // 승인 금리 (연 %) - Admin approved rate
 
   @Column({ type: 'int', nullable: true })
   approvedLoanPeriod: number | null = null; // 승인 대출 기간 (개월)
@@ -94,6 +100,9 @@ export class LoanApplication {
 
   @Column({ type: 'uuid', nullable: true })
   reviewedBy: string | null = null; // 심사자 (Admin User ID)
+
+  @Column({ type: 'uuid', nullable: true })
+  loanAccountId: string | null = null; // Created LoanAccount ID
 
   // Dates
   @Column({ type: 'timestamp', nullable: true })

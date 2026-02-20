@@ -67,7 +67,6 @@ export class UsersController {
 
   @Get('bank-accounts')
   @UseGuards(JwtAuthGuard)
-  
   @ApiOperation({ summary: 'Get all bank accounts for logged-in user' })
   @ApiResponse({
     status: 200,

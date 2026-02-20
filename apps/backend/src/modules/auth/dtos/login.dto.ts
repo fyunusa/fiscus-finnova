@@ -28,6 +28,7 @@ export class LoginResponseDto {
       firstName: 'John',
       lastName: 'Doe',
       userType: 'individual',
+      role: 'user',
       hasVerifiedBankAccount: true,
       hasKYCDocument: true,
       hasTransactionPIN: false,
@@ -39,6 +40,7 @@ export class LoginResponseDto {
     firstName: string;
     lastName: string;
     userType: string;
+    role: string;
     hasVerifiedBankAccount: boolean;
     hasKYCDocument: boolean;
     hasTransactionPIN: boolean;

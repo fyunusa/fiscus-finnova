@@ -1,3 +1,8 @@
+export enum UserRole {
+  USER = 'user',
+  ADMIN = 'admin',
+}
+
 export enum UserType {
   INDIVIDUAL = 'individual',
   CORPORATE = 'corporate',

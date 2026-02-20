@@ -1,8 +1,10 @@
 import { AppDataSource } from './data-source';
+import { User } from '@modules/users/entities/user.entity';
 import { Investment } from '@modules/investments/entities/investment.entity';
 import { SEED_INVESTMENTS } from '@modules/investments/seeds/investment.seed';
 import { LoanProduct } from '@modules/loans/entities/loan-product.entity';
 import { SEED_LOAN_PRODUCTS } from '@modules/loans/seeds/loan-product.seed';
+import { createDefaultAdminUser } from '@modules/users/seeds/admin-user.seed';
 
 async function runSeeds() {
   try {
@@ -12,8 +14,25 @@ async function runSeeds() {
       console.log('✓ Database connected');
     }
 
+    const userRepository = AppDataSource.getRepository(User);
     const investmentRepository = AppDataSource.getRepository(Investment);
     const loanProductRepository = AppDataSource.getRepository(LoanProduct);
+
+    // Seed Default Admin User
+    const adminCount = await userRepository.count({
+      where: { email: 'admin@fiscus.com' },
+    });
+    if (adminCount === 0) {
+      console.log('\nSeeding default admin user...');
+      const admin = await createDefaultAdminUser();
+      const savedAdmin = await userRepository.save(admin);
+      console.log(`✓ Successfully created admin user: ${savedAdmin.email}`);
+      console.log(`  Email: admin@fiscus.com`);
+      console.log(`  Password: Admin@123456`);
+      console.log(`  ⚠️  Please change the password after first login!`);
+    } else {
+      console.log('ℹ Admin user already exists in database. Skipping seed.');
+    }
 
     // Seed Investments
     const investmentCount = await investmentRepository.count();

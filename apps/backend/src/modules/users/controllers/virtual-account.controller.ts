@@ -6,6 +6,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Param,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { VirtualAccountService } from '../services/virtual-account.service';
@@ -59,6 +60,119 @@ export class VirtualAccountController {
       return generateSuccessResponse('Virtual account info retrieved', result);
     } catch (error) {
       handleStandardException(error, 'Failed to retrieve virtual account info');
+    }
+  }
+
+  /**
+   * Create or get user's virtual account
+   */
+  @Post('create')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create virtual account for user' })
+  @ApiResponse({ status: 201, description: 'Virtual account created or retrieved' })
+  async createVirtualAccount(@GetUser() user: User): Promise<ResponseDto> {
+    try {
+      const result = await this.virtualAccountService.createOrGetVirtualAccount(user.id);
+      return generateSuccessResponse('Virtual account created or retrieved', result);
+    } catch (error) {
+      handleStandardException(error, 'Failed to create virtual account');
+    }
+  }
+
+  /**
+   * Complete virtual account creation after user finishes checkout
+   * Called with the request ID to confirm account creation
+   */
+  @Post('complete/:requestId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Complete virtual account creation after checkout' })
+  @ApiResponse({ status: 200, description: 'Virtual account completion status' })
+  async completeVirtualAccount(
+    @GetUser() user: User,
+    @Param('requestId') requestId: string,
+  ): Promise<ResponseDto> {
+    try {
+      const result = await this.virtualAccountService.completeVirtualAccountRequest(
+        user.id,
+        requestId,
+      );
+      return generateSuccessResponse('Virtual account completion status', result);
+    } catch (error) {
+      handleStandardException(error, 'Failed to complete virtual account');
+    }
+  }
+
+  /**
+   * Check status of a virtual account request
+   * Returns whether account has been issued by Toss
+   * If approved, updates database and returns account details
+   */
+  @Get('status/:requestId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Check status of virtual account request' })
+  @ApiResponse({ status: 200, description: 'Virtual account request status' })
+  async checkVirtualAccountStatus(
+    @GetUser() user: User,
+    @Param('requestId') requestId: string,
+  ): Promise<ResponseDto> {
+    try {
+      const result = await this.virtualAccountService.checkVirtualAccountRequestStatus(
+        user.id,
+        requestId,
+      );
+      return generateSuccessResponse('Virtual account status retrieved', result);
+    } catch (error) {
+      handleStandardException(error, 'Failed to check virtual account status');
+    }
+  }
+
+  /**
+   * Get any pending virtual account request for current user
+   * Returns pending request details if one exists
+   */
+  @Get('pending-request')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get pending virtual account request' })
+  @ApiResponse({ status: 200, description: 'Pending request details or null' })
+  async getPendingRequest(
+    @GetUser() user: User,
+  ): Promise<ResponseDto> {
+    try {
+      const result = await this.virtualAccountService.getPendingVirtualAccountRequest(user.id);
+      return generateSuccessResponse('Pending request retrieved', result);
+    } catch (error) {
+      handleStandardException(error, 'Failed to retrieve pending request');
+    }
+  }
+
+  /**
+   * Confirm virtual account payment after user completes Toss checkout
+   * Attempts to confirm the payment and issue the virtual account
+   */
+  @Post('confirm/:requestId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Confirm virtual account payment after checkout' })
+  @ApiResponse({ status: 200, description: 'Payment confirmation status' })
+  async confirmVirtualAccountPayment(
+    @GetUser() user: User,
+    @Param('requestId') requestId: string,
+  ): Promise<ResponseDto> {
+    try {
+      const result = await this.virtualAccountService.confirmVirtualAccountPayment(
+        user.id,
+        requestId,
+      );
+      return generateSuccessResponse('Payment confirmation status retrieved', result);
+    } catch (error) {
+      handleStandardException(error, 'Failed to confirm virtual account payment');
     }
   }
 

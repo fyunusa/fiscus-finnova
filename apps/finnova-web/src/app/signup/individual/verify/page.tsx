@@ -24,6 +24,8 @@ export default function IdentityVerificationPage() {
   const [timeLeft, setTimeLeft] = useState(180); // 3 minutes
   const [codeVerified, setCodeVerified] = useState(false);
   const [niceToken, setNiceToken] = useState<string | null>(null);
+  const [phoneChecked, setPhoneChecked] = useState(false);
+  const [phoneAvailable, setPhoneAvailable] = useState<boolean | null>(null);
 
   // Load stored data from previous session on mount
   React.useEffect(() => {
@@ -55,6 +57,59 @@ export default function IdentityVerificationPage() {
     return `${numbers.slice(0, 3)}-${numbers.slice(3, 7)}-${numbers.slice(7, 11)}`;
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhone(e.target.value);
+    setPhone(formatted);
+    setPhoneChecked(false);
+    setPhoneAvailable(null);
+  };
+
+  const handleCheckPhone = async () => {
+    if (!phone.trim()) {
+      setError('휴대폰 번호를 입력해주세요');
+      return;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 11) {
+      setError('올바른 휴대폰 번호를 입력해주세요 (11자리)');
+      setPhoneAvailable(false);
+      setPhoneChecked(true);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      // Call backend phone duplicate check API
+      const response = await fetch('http://localhost:4000/api/v1/auth/check-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: cleanPhone }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setError('휴대폰 번호 확인 중 오류가 발생했습니다');
+        setPhoneAvailable(false);
+        setPhoneChecked(true);
+        return;
+      }
+
+      setPhoneAvailable(result.data.available);
+      setPhoneChecked(true);
+      if (!result.data.available) {
+        setError('이미 등록된 휴대폰 번호입니다');
+      }
+    } catch (err) {
+      setError('휴대폰 번호 확인 중 오류가 발생했습니다');
+      setPhoneAvailable(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -73,6 +128,13 @@ export default function IdentityVerificationPage() {
       return;
     }
     console.log('✓ Name valid:', name);
+
+    if (!phoneChecked || !phoneAvailable) {
+      console.log('❌ Phone not checked or not available');
+      setError('먼저 휴대폰 번호 중복확인을 해주세요');
+      return;
+    }
+    console.log('✓ Phone verified and available');
 
     const phoneDigits = phone.replace(/\D/g, '');
     console.log('✓ Phone digits:', phoneDigits, 'Length:', phoneDigits.length);
@@ -275,14 +337,39 @@ export default function IdentityVerificationPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     휴대폰 번호 (필수)
                   </label>
-                  <Input
-                    type="tel"
-                    placeholder="010-1234-5678"
-                    value={formatPhone(phone)}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                    disabled={loading}
-                    className="w-full"
-                  />
+                  <div className="flex gap-2 mb-2">
+                    <Input
+                      type="tel"
+                      placeholder="010-1234-5678"
+                      value={formatPhone(phone)}
+                      onChange={handlePhoneChange}
+                      disabled={loading}
+                      className="flex-1"
+                    />
+                    <button
+                      onClick={handleCheckPhone}
+                      className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 whitespace-nowrap"
+                      disabled={!phone || loading}
+                    >
+                      {loading ? '확인 중...' : '중복확인'}
+                    </button>
+                  </div>
+                  {phoneChecked && phoneAvailable === true && (
+                    <div className="flex items-center gap-2 text-green-600 text-sm mb-2">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      사용 가능한 휴대폰 번호입니다
+                    </div>
+                  )}
+                  {phoneChecked && phoneAvailable === false && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm mb-2">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      이미 등록된 휴대폰 번호입니다
+                    </div>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">
                     인증 코드가 전송됩니다
                   </p>
@@ -317,7 +404,7 @@ export default function IdentityVerificationPage() {
                     handleRequestVerification();
                   }}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-                  disabled={loading || !name.trim() || phone.replace(/\D/g, '').length !== 11}
+                  disabled={loading || !name.trim() || !phoneChecked || !phoneAvailable || phone.replace(/\D/g, '').length !== 11}
                 >
                   {loading ? '요청 중...' : '인증요청'}
                 </button>
