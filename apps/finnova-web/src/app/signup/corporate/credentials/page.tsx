@@ -54,7 +54,7 @@ export default function CorporateCredentialsPage() {
     setError('');
     try {
       // Call backend email duplicate check API
-      const response = await fetch('http://localhost:4000/api/v1/auth/check-email', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/check-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
@@ -94,7 +94,7 @@ export default function CorporateCredentialsPage() {
     setError('');
     try {
       // Re-validate email before proceeding (in case user modified it)
-      const emailValidationResponse = await fetch('http://localhost:4000/api/v1/auth/check-email', {
+      const emailValidationResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/check-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
@@ -135,7 +135,7 @@ export default function CorporateCredentialsPage() {
       };
 
       // Call backend signup API
-      const response = await fetch('http://localhost:4000/api/v1/auth/corporate/signup', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/corporate/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payloadData),

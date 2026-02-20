@@ -64,7 +64,7 @@ export default function CorporateVerifyPage() {
     setError('');
     try {
       // Call backend phone duplicate check API
-      const response = await fetch('http://localhost:4000/api/v1/auth/check-phone', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/check-phone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: cleanPhone }),
@@ -113,7 +113,7 @@ export default function CorporateVerifyPage() {
 
     try {
       // Re-validate phone before requesting SMS (in case user modified it)
-      const phoneValidationResponse = await fetch('http://localhost:4000/api/v1/auth/check-phone', {
+      const phoneValidationResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/check-phone`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: phone.replace(/\D/g, '') }),
@@ -129,7 +129,7 @@ export default function CorporateVerifyPage() {
       }
 
       // Call backend SMS API
-      const response = await fetch('http://localhost:4000/api/v1/auth/corporate/send-sms-code', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/corporate/send-sms-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phoneNumber: phone.replace(/\D/g, '') }),
@@ -179,7 +179,7 @@ export default function CorporateVerifyPage() {
       }
 
       // Call backend to verify SMS code
-      const response = await fetch('http://localhost:4000/api/v1/auth/corporate/verify-sms-code', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/corporate/verify-sms-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

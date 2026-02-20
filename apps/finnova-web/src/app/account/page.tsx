@@ -126,7 +126,7 @@ export default function AccountPage() {
       }
 
       // Call refresh endpoint to get updated login data with latest flags
-      const response = await fetch('http://localhost:4000/api/v1/auth/refresh', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
@@ -236,7 +236,7 @@ export default function AccountPage() {
       }
 
       console.log('Calling API endpoint...');
-      const response = await fetch('http://localhost:4000/api/v1/auth/change-password', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -299,7 +299,7 @@ export default function AccountPage() {
       }
 
       console.log('Calling API endpoint for PIN change...');
-      const response = await fetch('http://localhost:4000/api/v1/auth/change-pin', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/auth/change-pin`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
