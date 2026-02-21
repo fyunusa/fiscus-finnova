@@ -98,6 +98,13 @@ export default function DashboardPage() {
       href: '/loan/my-loans',
       color: 'from-rose-500 to-rose-600'
     },
+    {
+      title: '입출금 관리',
+      description: '가상계좌 입출금 및 잔액 관리',
+      icon: '💳',
+      href: '/dashboard/deposits',
+      color: 'from-emerald-500 to-emerald-600'
+    },
   ];
 
   const summaryCards = [

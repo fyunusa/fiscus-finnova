@@ -224,7 +224,7 @@ export default function Layout({ children }: LayoutProps) {
               <h4 className="text-white font-semibold mb-4">고객지원</h4>
               <ul className="space-y-2 text-sm">
                 <li><Link href="/faq" className="hover:text-white">자주 묻는 질문</Link></li>
-                <li><Link href="/support" className="hover:text-white">1:1 문의</Link></li>
+                <li><Link href="/support/tickets" className="hover:text-white">1:1 문의</Link></li>
               </ul>
             </div>
           </div>

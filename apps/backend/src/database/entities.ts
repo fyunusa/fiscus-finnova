@@ -27,6 +27,8 @@ import {
   LoanRepaymentTransaction,
   LoanConsultation,
 } from '@modules/loans/entities';
+import { Inquiry } from '@modules/inquiry/entities/inquiry.entity';
+import { InquiryComment } from '@modules/inquiry/entities/inquiry-comment.entity';
 
 // Re-export all entities
 export {
@@ -50,6 +52,8 @@ export {
   LoanRepaymentSchedule,
   LoanRepaymentTransaction,
   LoanConsultation,
+  Inquiry,
+  InquiryComment,
 };
 
 // Collection array for easy use in TypeORM configuration
@@ -74,6 +78,8 @@ export const ALL_ENTITIES = [
   LoanRepaymentSchedule,
   LoanRepaymentTransaction,
   LoanConsultation,
+  Inquiry,
+  InquiryComment,
 ];
 
 // Export services (in case we need centralized service management)

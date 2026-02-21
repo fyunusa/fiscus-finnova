@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Investment } from '../entities/investment.entity';
@@ -11,9 +11,12 @@ import {
   InvestmentStatusEnum,
   UserInvestmentStatusEnum,
 } from '@common/enums/investment.enum';
+import { VirtualAccountService } from '@modules/users/services/virtual-account.service';
 
 @Injectable()
 export class InvestmentsService {
+  private readonly logger = new Logger(InvestmentsService.name);
+
   constructor(
     @InjectRepository(Investment)
     private investmentsRepository: Repository<Investment>,
@@ -21,6 +24,7 @@ export class InvestmentsService {
     private userInvestmentsRepository: Repository<UserInvestment>,
     @InjectRepository(UserFavoriteInvestment)
     private userFavoriteInvestmentsRepository: Repository<UserFavoriteInvestment>,
+    private readonly virtualAccountService: VirtualAccountService,
   ) {}
 
   /**
@@ -145,6 +149,7 @@ export class InvestmentsService {
 
   /**
    * Add investment for a user
+   * Debits the user's virtual account before creating the investment record
    */
   async addUserInvestment(userId: string, investmentId: string, amount: number): Promise<UserInvestmentResponseDto> {
     const investment = await this.investmentsRepository.findOne({ where: { id: investmentId } });
@@ -155,7 +160,7 @@ export class InvestmentsService {
 
     if (amount < investment.minInvestment) {
       throw new BadRequestException(
-        `Investment amount must be at least ${investment.minInvestment} KRW`,
+        `최소 투자 금액은 ${(investment.minInvestment / 10000).toLocaleString()}만 원입니다.`,
       );
     }
 
@@ -165,10 +170,30 @@ export class InvestmentsService {
     });
 
     if (existing) {
-      throw new BadRequestException('User has already invested in this investment');
+      throw new BadRequestException('이미 이 상품에 투자하셨습니다.');
     }
 
-    // Create user investment record
+    // Step 1: Debit the user's virtual account (freeze the balance)
+    try {
+      await this.virtualAccountService.freezeBalance(userId, amount);
+      this.logger.log(`Froze ${amount} KRW from user ${userId} for investment ${investmentId}`);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw new BadRequestException(
+          '가상계좌가 없습니다. 먼저 가상계좌를 개설해주세요.',
+        );
+      }
+      if (error instanceof BadRequestException) {
+        throw new BadRequestException(
+          `잔액이 부족합니다. 투자 금액: ${(amount / 10000).toLocaleString()}만 원`,
+        );
+      }
+      throw error;
+    }
+
+    // Step 2: Create user investment record
+    // Note: freezeBalance already moved funds from available to frozen.
+    // No separate withdrawal needed — funds stay frozen until investment concludes.
     const calculateCount = Math.floor(amount / 1000000); // Count by 1M units
     const userInvestment = this.userInvestmentsRepository.create({
       userId,
@@ -183,7 +208,7 @@ export class InvestmentsService {
 
     await this.userInvestmentsRepository.save(userInvestment);
 
-    // Update investment funding
+    // Step 4: Update investment funding
     investment.fundingCurrent += amount;
     investment.investorCount += 1;
 

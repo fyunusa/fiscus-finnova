@@ -39,7 +39,7 @@ const Footer: React.FC = () => {
             <ul className="space-y-2 text-sm">
               <li><Link href="/support/faq" className="text-gray-600 hover:text-blue-600">자주 묻는 질문</Link></li>
               <li><Link href="/support/notice" className="text-gray-600 hover:text-blue-600">공지사항</Link></li>
-              <li><Link href="/support/inquiry" className="text-gray-600 hover:text-blue-600">1:1 문의</Link></li>
+              <li><Link href="/support/tickets" className="text-gray-600 hover:text-blue-600">1:1 문의</Link></li>
             </ul>
           </div>
         </div>

@@ -1,22 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
-import { Card, Button, Badge, Input } from '@/components/ui';
-import { Plus, MessageSquare, Clock, AlertCircle, CheckCircle, Search, ChevronRight } from 'lucide-react';
-
-interface Ticket {
-  id: string;
-  subject: string;
-  category: 'account' | 'investment' | 'loan' | 'technical' | 'other';
-  status: 'open' | 'pending' | 'closed';
-  date: string;
-  priority: 'low' | 'medium' | 'high';
-  description: string;
-  fullMessage: string;
-  replies: number;
-  lastReply: string;
-}
+import { Card, Button, Badge, Input, Alert } from '@/components/ui';
+import { Plus, MessageSquare, Clock, CheckCircle, Search, ChevronRight } from 'lucide-react';
+import {
+  getInquiries,
+  getInquiry,
+  createInquiry,
+  updateInquiry,
+  closeInquiry,
+  addComment,
+  type Inquiry,
+  type CreateInquiryPayload,
+} from '@/services/inquiry.service';
 
 const CATEGORIES = [
   { id: 'all', label: '전체', emoji: '📩' },
@@ -27,166 +24,175 @@ const CATEGORIES = [
   { id: 'other', label: '기타', emoji: '📋' },
 ];
 
-const DEMO_TICKETS: Ticket[] = [
-  {
-    id: 'TKT-001',
-    subject: '투자금 출금이 안 됩니다',
-    category: 'investment',
-    status: 'pending',
-    date: '2026-02-14',
-    priority: 'high',
-    description: '어제 신청한 투자금 100만원이 아직 출금되지 않았습니다.',
-    fullMessage: `안녕하세요,
-
-어제 신청한 투자금 100만원이 아직 출금되지 않았습니다. 계좌 확인을 부탁드립니다.
-
-신청 정보:
-- 신청일: 2026-02-13 15:30
-- 금액: 1,000,000원
-- 출금 계좌: 신한은행 xxx-xxx-xxxx
-
-빠른 처리 부탁드립니다.`,
-    replies: 2,
-    lastReply: '2026-02-14 09:30 (담당자)',
-  },
-  {
-    id: 'TKT-002',
-    subject: '로그인 비밀번호 리셋이 필요합니다',
-    category: 'account',
-    status: 'open',
-    date: '2026-02-13',
-    priority: 'high',
-    description: '비밀번호를 잊어버려서 리셋이 필요합니다.',
-    fullMessage: `비밀번호를 잊어버려서 리셋이 필요합니다. 메일로 리셋 링크를 보내주세요.
-
-등록된 이메일: user@example.com
-가입일: 2025-01-15`,
-    replies: 1,
-    lastReply: '2026-02-13 14:20 (자동)',
-  },
-  {
-    id: 'TKT-003',
-    subject: '투자 상품이 궁금합니다',
-    category: 'investment',
-    status: 'closed',
-    date: '2026-02-10',
-    priority: 'low',
-    description: '강남 오피스텔 담보대출 상품에 대해 문의드립니다.',
-    fullMessage: `강남 오피스텔 담보대출 상품에 대해 문의드립니다.
-
-몇 가지 궁금한 점이 있습니다:
-1. LTV 70%는 어떻게 계산되나요?
-2. 월정 배당금 지급은 언제인가요?
-3. 조기 상환 시 수수료가 있나요?
-
-자세한 설명 부탁드립니다.`,
-    replies: 3,
-    lastReply: '2026-02-11 10:15 (담당자)',
-  },
-  {
-    id: 'TKT-004',
-    subject: '앱이 자꾸 강제종료됩니다',
-    category: 'technical',
-    status: 'pending',
-    date: '2026-02-11',
-    priority: 'medium',
-    description: 'iOS 앱이 투자 페이지에서 자꾸 강제종료됩니다.',
-    fullMessage: `iOS 앱이 투자 페이지에서 자꾸 강제종료됩니다.
-
-정보:
-- 기기: iPhone 14
-- iOS 버전: 17.3
-- 앱 버전: 2.4.1
-- 발생 상황: 특정 투자 상품 클릭 시
-
-최근 앱 업데이트 후 문제가 생겼습니다.`,
-    replies: 1,
-    lastReply: '2026-02-11 16:45 (담당자)',
-  },
-  {
-    id: 'TKT-005',
-    subject: '대출 신청 서류 제출',
-    category: 'loan',
-    status: 'open',
-    date: '2026-02-09',
-    priority: 'medium',
-    description: '대출 신청에 필요한 서류가 뭔가요?',
-    fullMessage: `대출 신청에 필요한 서류가 뭔가요?
-
-부동산담보대출을 신청하려고 합니다. 어떤 서류를 준비해야 하나요?
-
-- 증명 사진
-- 신분증
-- 기타?
-
-상세 리스트를 부탁드립니다.`,
-    replies: 1,
-    lastReply: '2026-02-09 11:20 (자동)',
-  },
-];
-
 export default function TicketsPage() {
+  const [tickets, setTickets] = useState<Inquiry[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<Inquiry | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(DEMO_TICKETS[0]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showNewTicketForm, setShowNewTicketForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const filteredTickets = DEMO_TICKETS.filter((ticket) => {
-    const matchesCategory = selectedCategory === 'all' || ticket.category === selectedCategory;
-    const matchesSearch = ticket.subject.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
+  // New ticket form state
+  const [showNewTicketForm, setShowNewTicketForm] = useState(false);
+  const [newTicket, setNewTicket] = useState<CreateInquiryPayload>({
+    subject: '',
+    message: '',
+    category: 'other',
+    priority: 'medium',
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [editSubject, setEditSubject] = useState('');
+  const [editMessage, setEditMessage] = useState('');
+
+  // Comment state
+  const [commentText, setCommentText] = useState('');
+  const [addingComment, setAddingComment] = useState(false);
+
+  const fetchTickets = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await getInquiries(
+        selectedCategory !== 'all' ? selectedCategory : undefined,
+      );
+      setTickets(data);
+    } catch (err) {
+      setError('문의 목록을 불러오는데 실패했습니다');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
+
+  const handleSelectTicket = async (ticket: Inquiry) => {
+    try {
+      const detail = await getInquiry(ticket.id);
+      setSelectedTicket(detail);
+    } catch {
+      setSelectedTicket(ticket);
+    }
+  };
+
+  const handleCreateTicket = async () => {
+    if (!newTicket.subject.trim() || !newTicket.message.trim()) return;
+
+    setSubmitting(true);
+    try {
+      await createInquiry(newTicket);
+      setShowNewTicketForm(false);
+      setNewTicket({ subject: '', message: '', category: 'other', priority: 'medium' });
+      await fetchTickets();
+    } catch (err) {
+      console.error('Failed to create inquiry:', err);
+      setError('문의 생성에 실패했습니다. 로그인 여부를 확인해주세요.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCloseTicket = async () => {
+    if (!selectedTicket) return;
+    try {
+      const updated = await closeInquiry(selectedTicket.id);
+      setSelectedTicket(updated);
+      await fetchTickets();
+    } catch (err) {
+      console.error('Failed to close inquiry:', err);
+    }
+  };
+
+  const handleEditStart = () => {
+    if (!selectedTicket) return;
+    setEditSubject(selectedTicket.subject);
+    setEditMessage(selectedTicket.message);
+    setEditMode(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!selectedTicket) return;
+    try {
+      const updated = await updateInquiry(selectedTicket.id, {
+        subject: editSubject,
+        message: editMessage,
+      });
+      setSelectedTicket(updated);
+      setEditMode(false);
+      await fetchTickets();
+    } catch (err) {
+      console.error('Failed to update inquiry:', err);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!selectedTicket || !commentText.trim()) return;
+    setAddingComment(true);
+    try {
+      await addComment(selectedTicket.id, commentText);
+      setCommentText('');
+      // Refresh the detail
+      const updated = await getInquiry(selectedTicket.id);
+      setSelectedTicket(updated);
+      await fetchTickets();
+    } catch (err) {
+      console.error('Failed to add comment:', err);
+    } finally {
+      setAddingComment(false);
+    }
+  };
+
+  const filteredTickets = tickets.filter((ticket) => {
+    return ticket.subject.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'closed':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'open': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'closed': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'open':
-        return '답변 대기';
-      case 'pending':
-        return '검토 중';
-      case 'closed':
-        return '완료';
-      default:
-        return status;
+      case 'open': return '답변 대기';
+      case 'pending': return '검토 중';
+      case 'closed': return '완료';
+      default: return status;
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high':
-        return 'bg-red-100 text-red-800';
-      case 'medium':
-        return 'bg-orange-100 text-orange-800';
-      case 'low':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'medium': return 'bg-orange-100 text-orange-800';
+      case 'low': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
-      case 'high':
-        return '긴급';
-      case 'medium':
-        return '일반';
-      case 'low':
-        return '낮음';
-      default:
-        return priority;
+      case 'high': return '긴급';
+      case 'medium': return '일반';
+      case 'low': return '낮음';
+      default: return priority;
     }
+  };
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
   };
 
   return (
@@ -209,6 +215,8 @@ export default function TicketsPage() {
           </div>
         </div>
 
+        {error && <Alert type="error" className="mb-4">{error}</Alert>}
+
         {/* Category Filter */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
           {CATEGORIES.map((cat) => (
@@ -230,7 +238,6 @@ export default function TicketsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Tickets List */}
           <div className="lg:col-span-1">
-            {/* Search */}
             <div className="mb-4 relative">
               <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
               <Input
@@ -242,55 +249,64 @@ export default function TicketsPage() {
               />
             </div>
 
-            {/* Tickets */}
-            <div className="space-y-3 max-h-screen overflow-y-auto pr-2">
-              {filteredTickets.map((ticket) => (
-                <Card
-                  key={ticket.id}
-                  className={`p-4 cursor-pointer transition-all border-2 ${
-                    selectedTicket?.id === ticket.id
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                  onClick={() => setSelectedTicket(ticket)}
-                >
-                  <div className="space-y-3">
-                    {/* ID & Priority */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-gray-500">{ticket.id}</span>
-                      <Badge className={`text-xs font-semibold ${getPriorityColor(ticket.priority)}`}>
-                        {getPriorityLabel(ticket.priority)}
-                      </Badge>
-                    </div>
+            {loading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-screen overflow-y-auto pr-2">
+                  {filteredTickets.length === 0 ? (
+                    <Card className="p-8 text-center">
+                      <MessageSquare className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                      <p className="text-gray-500 text-sm">문의가 없습니다</p>
+                    </Card>
+                  ) : (
+                    filteredTickets.map((ticket) => (
+                      <Card
+                        key={ticket.id}
+                        className={`p-4 cursor-pointer transition-all border-2 ${selectedTicket?.id === ticket.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-blue-300'
+                          }`}
+                      onClick={() => handleSelectTicket(ticket)}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-gray-500">
+                            {ticket.id.slice(0, 8).toUpperCase()}
+                          </span>
+                          <Badge className={`text-xs font-semibold ${getPriorityColor(ticket.priority)}`}>
+                            {getPriorityLabel(ticket.priority)}
+                          </Badge>
+                        </div>
 
-                    {/* Subject */}
-                    <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">
-                      {ticket.subject}
-                    </h3>
+                        <h3 className="font-semibold text-gray-900 text-sm line-clamp-2">
+                          {ticket.subject}
+                        </h3>
 
-                    {/* Status & Date */}
-                    <div className="flex items-center justify-between text-xs">
-                      <Badge className={`text-xs font-semibold ${getStatusColor(ticket.status)}`}>
-                        {getStatusLabel(ticket.status)}
-                      </Badge>
-                      <span className="text-gray-500">{ticket.date}</span>
-                    </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <Badge className={`text-xs font-semibold ${getStatusColor(ticket.status)}`}>
+                            {getStatusLabel(ticket.status)}
+                          </Badge>
+                          <span className="text-gray-500">{formatDate(ticket.createdAt)}</span>
+                        </div>
 
-                    {/* Bottom Info */}
-                    <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
-                      <span className="flex items-center gap-1">
-                        <MessageSquare className="w-3 h-3" />
-                        {ticket.replies} 댓글
-                      </span>
-                      <ChevronRight className="w-3 h-3" />
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+                        <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3" />
+                            {ticket.repliesCount} 댓글
+                          </span>
+                          <ChevronRight className="w-3 h-3" />
+                        </div>
+                      </div>
+                    </Card>
+                  ))
+                  )}
+                </div>
+            )}
           </div>
 
-          {/* Ticket Detail Modal */}
+          {/* Ticket Detail */}
           <div className="lg:col-span-2">
             {selectedTicket ? (
               <Card className="border-2 border-gray-200 overflow-hidden">
@@ -298,19 +314,29 @@ export default function TicketsPage() {
                 <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <p className="text-sm opacity-90 mb-2">{selectedTicket.id}</p>
-                      <h2 className="text-3xl font-bold mb-4">{selectedTicket.subject}</h2>
+                      <p className="text-sm opacity-90 mb-2">
+                        {selectedTicket.id.slice(0, 8).toUpperCase()}
+                      </p>
+                      {editMode ? (
+                        <Input
+                          type="text"
+                          value={editSubject}
+                          onChange={(e) => setEditSubject(e.target.value)}
+                          className="text-xl font-bold bg-white/20 text-white border-white/30 rounded px-2 py-1 w-full"
+                        />
+                      ) : (
+                        <h2 className="text-3xl font-bold mb-4">{selectedTicket.subject}</h2>
+                      )}
                     </div>
                     <Badge className={`text-xs font-semibold ${getStatusColor(selectedTicket.status)}`}>
                       {getStatusLabel(selectedTicket.status)}
                     </Badge>
                   </div>
 
-                  {/* Meta Info */}
                   <div className="flex items-center gap-6 text-sm flex-wrap">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
-                      {selectedTicket.date}
+                      {formatDate(selectedTicket.createdAt)}
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge className={`text-xs font-semibold ${getPriorityColor(selectedTicket.priority)}`}>
@@ -319,7 +345,7 @@ export default function TicketsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <MessageSquare className="w-4 h-4" />
-                      {selectedTicket.replies} 댓글
+                      {selectedTicket.repliesCount} 댓글
                     </div>
                   </div>
                 </div>
@@ -328,39 +354,105 @@ export default function TicketsPage() {
                 <div className="p-8">
                   <div className="mb-8">
                     <h3 className="font-semibold text-gray-900 mb-3">원문</h3>
-                    <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 p-4 rounded-lg">
-                      {selectedTicket.fullMessage}
-                    </div>
+                    {editMode ? (
+                      <textarea
+                        value={editMessage}
+                        onChange={(e) => setEditMessage(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 h-40"
+                      />
+                    ) : (
+                        <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed bg-gray-50 p-4 rounded-lg">
+                        {selectedTicket.message}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Reply Info */}
-                  <div className="mb-8 pb-8 border-b">
-                    <h3 className="font-semibold text-gray-900 mb-3">최근 답변</h3>
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <p className="text-sm text-gray-600 mb-2">{selectedTicket.lastReply}</p>
-                      <p className="text-sm text-gray-700">
-                        {selectedTicket.status === 'closed'
-                          ? '문제가 해결되었습니다. 추가 질문이 있으시면 새로운 문의를 작성해주세요.'
-                          : selectedTicket.status === 'pending'
-                            ? '담당자가 검토 중입니다. 곧 답변드리겠습니다.'
-                            : '담당자가 답변을 준비 중입니다.'}
-                      </p>
+                  {/* Comments */}
+                  {selectedTicket.comments && selectedTicket.comments.length > 0 && (
+                    <div className="mb-8">
+                      <h3 className="font-semibold text-gray-900 mb-3">댓글</h3>
+                      <div className="space-y-3">
+                        {selectedTicket.comments.map((comment) => (
+                          <div
+                            key={comment.id}
+                            className={`p-4 rounded-lg border ${comment.isAdminReply
+                                ? 'bg-blue-50 border-blue-200'
+                                : 'bg-gray-50 border-gray-200'
+                              }`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-semibold text-gray-700">
+                                {comment.isAdminReply ? '담당자' : comment.user?.name || '사용자'}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {formatDate(comment.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Add Comment */}
+                  {selectedTicket.status !== 'closed' && (
+                    <div className="mb-8 pb-8 border-b">
+                      <h3 className="font-semibold text-gray-900 mb-3">답변 달기</h3>
+                      <textarea
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="답변을 입력하세요..."
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 mb-3"
+                      />
+                      <Button
+                        onClick={handleAddComment}
+                        disabled={!commentText.trim() || addingComment}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
+                      >
+                        {addingComment ? '전송 중...' : '답변 전송'}
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Action Buttons */}
                   <div className="flex gap-3">
-                    {selectedTicket.status !== 'closed' && (
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
-                        답변 달기
-                      </Button>
+                    {editMode ? (
+                      <>
+                        <Button
+                          onClick={handleEditSave}
+                          className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg"
+                        >
+                          저장
+                        </Button>
+                        <Button
+                          onClick={() => setEditMode(false)}
+                          variant="outline"
+                          className="px-6 py-2 border border-gray-300 rounded-lg"
+                        >
+                          취소
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                          {selectedTicket.status !== 'closed' && (
+                            <Button
+                              onClick={handleCloseTicket}
+                              variant="outline"
+                              className="px-6 py-2 border border-gray-300 rounded-lg"
+                            >
+                              문의 종료
+                            </Button>
+                          )}
+                          <Button
+                            onClick={handleEditStart}
+                            variant="outline"
+                            className="px-6 py-2 border border-gray-300 rounded-lg"
+                          >
+                            편집
+                          </Button>
+                      </>
                     )}
-                    <Button variant="outline" className="px-6 py-2 border border-gray-300 rounded-lg">
-                      문의 종료
-                    </Button>
-                    <Button variant="outline" className="px-6 py-2 border border-gray-300 rounded-lg">
-                      편집
-                    </Button>
                   </div>
                 </div>
               </Card>
@@ -397,7 +489,11 @@ export default function TicketsPage() {
                     {CATEGORIES.slice(1).map((cat) => (
                       <button
                         key={cat.id}
-                        className="p-3 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition text-left text-sm font-medium"
+                        onClick={() => setNewTicket({ ...newTicket, category: cat.id })}
+                        className={`p-3 border-2 rounded-lg transition text-left text-sm font-medium ${newTicket.category === cat.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-blue-500 hover:bg-blue-50'
+                          }`}
                       >
                         {cat.emoji} {cat.label}
                       </button>
@@ -413,6 +509,8 @@ export default function TicketsPage() {
                   <Input
                     type="text"
                     placeholder="문의 제목을 입력하세요"
+                    value={newTicket.subject}
+                    onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -424,6 +522,8 @@ export default function TicketsPage() {
                   </label>
                   <textarea
                     placeholder="자세한 내용을 입력하세요..."
+                    value={newTicket.message}
+                    onChange={(e) => setNewTicket({ ...newTicket, message: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 h-40"
                   />
                 </div>
@@ -441,7 +541,11 @@ export default function TicketsPage() {
                     ].map((opt) => (
                       <button
                         key={opt.value}
-                        className={`px-4 py-2 border-2 rounded-lg transition font-medium text-sm ${opt.color}`}
+                        onClick={() => setNewTicket({ ...newTicket, priority: opt.value })}
+                        className={`px-4 py-2 border-2 rounded-lg transition font-medium text-sm ${newTicket.priority === opt.value
+                            ? 'ring-2 ring-blue-500 ' + opt.color
+                            : opt.color
+                          }`}
                       >
                         {opt.label}
                       </button>
@@ -451,8 +555,12 @@ export default function TicketsPage() {
 
                 {/* Buttons */}
                 <div className="flex gap-3 pt-4 border-t">
-                  <Button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium">
-                    문의 제출
+                  <Button
+                    onClick={handleCreateTicket}
+                    disabled={!newTicket.subject.trim() || !newTicket.message.trim() || submitting}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium"
+                  >
+                    {submitting ? '제출 중...' : '문의 제출'}
                   </Button>
                   <Button
                     variant="outline"

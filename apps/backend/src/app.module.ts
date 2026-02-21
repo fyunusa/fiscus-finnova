@@ -14,6 +14,8 @@ import { FeatureFlagsModule } from '@modules/feature-flags/feature-flags.module'
 import { I18nConfigModule } from '@modules/i18n/i18n.module';
 import { InvestmentsModule } from '@modules/investments/investments.module';
 import { LoansModule } from '@modules/loans/loans.module';
+import { InquiryModule } from '@modules/inquiry/inquiry.module';
+import { DepositsModule } from '@modules/deposits/deposits.module';
 import { ALL_ENTITIES } from './database/entities';
 
 @Module({
@@ -53,6 +55,8 @@ import { ALL_ENTITIES } from './database/entities';
     FeatureFlagsModule,
     InvestmentsModule,
     LoansModule,
+    InquiryModule,
+    DepositsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

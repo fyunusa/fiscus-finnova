@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { Card, Button, Badge } from '@/components/ui';
-import { ChevronLeft, AlertCircle, Loader } from 'lucide-react';
+import { ChevronLeft, AlertCircle, Loader, Wallet } from 'lucide-react';
 import * as investmentsService from '@/services/investments.service';
 import { Investment } from '@/services/investments.service';
+import { getVirtualAccountInfo, VirtualAccountInfo } from '@/services/virtual-account.service';
 
 export default function InvestmentCheckoutPage() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export default function InvestmentCheckoutPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [accountInfo, setAccountInfo] = useState<VirtualAccountInfo | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(true);
 
   // Fetch investment detail
   useEffect(() => {
@@ -45,6 +48,24 @@ export default function InvestmentCheckoutPage() {
       fetchInvestment();
     }
   }, [productId]);
+
+  // Fetch virtual account balance
+  useEffect(() => {
+    const fetchBalance = async () => {
+      try {
+        setBalanceLoading(true);
+        const res = await getVirtualAccountInfo();
+        if (res.success && res.data) {
+          setAccountInfo(res.data);
+        }
+      } catch (err) {
+        console.error('Error fetching balance:', err);
+      } finally {
+        setBalanceLoading(false);
+      }
+    };
+    fetchBalance();
+  }, []);
 
   const handleInvest = async () => {
     try {
@@ -171,6 +192,52 @@ export default function InvestmentCheckoutPage() {
                 <p className="text-xs text-gray-500 mt-2">
                   최소 투자 금액: {Math.floor(product.minInvestment / 10000)}만 원
                 </p>
+              </div>
+
+              {/* Virtual Account Balance */}
+              <div className="mb-6">
+                {balanceLoading ? (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg animate-pulse">
+                    <p className="text-sm text-blue-400">잔액 확인 중...</p>
+                  </div>
+                ) : accountInfo ? (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-800">투자 가능 잔액</span>
+                      </div>
+                      <span className="text-lg font-bold text-blue-900">
+                        {Number(accountInfo.availableBalance).toLocaleString()}원
+                      </span>
+                    </div>
+                    {amountInWon > Number(accountInfo.availableBalance) && amountInWon > 0 && (
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <p className="text-xs text-red-600 mb-2">
+                          ⚠️ 잔액이 부족합니다. 투자 전 가상계좌에 입금해주세요.
+                        </p>
+                        <Button
+                          onClick={() => router.push('/dashboard/deposits')}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded-lg"
+                        >
+                          💰 가상계좌에 입금하기
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800 mb-3">
+                      ⚠️ 가상계좌가 없습니다. 투자하려면 먼저 가상계좌를 개설하고 입금해주세요.
+                    </p>
+                    <Button
+                      onClick={() => router.push('/dashboard/deposits')}
+                      className="w-full bg-yellow-600 hover:bg-yellow-700 text-white text-sm py-2 rounded-lg"
+                    >
+                      🏦 가상계좌 개설 및 입금하기
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Error Message */}

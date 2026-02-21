@@ -180,7 +180,7 @@ export default function HelpCenterPage() {
           <MessageCircle className="w-12 h-12 text-blue-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">더 이상 도움이 되지 않나요?</h3>
           <p className="text-gray-600 mb-6">고객 지원 팀에 문의하세요</p>
-          <Link href="/support/tickets/new">
+          <Link href="/support/tickets">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2">
               문의 등록하기
             </Button>

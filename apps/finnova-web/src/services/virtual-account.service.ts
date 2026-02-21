@@ -312,3 +312,152 @@ export async function recordWithdrawal(amount: number, pin: string, description?
 
   return response.json();
 }
+
+// ============ TOSS CARD PAYMENT (REAL DEPOSITS) ============
+
+export interface InitiateDepositPaymentRequest {
+  amount: number;
+  description?: string;
+}
+
+export interface InitiateDepositPaymentResponse {
+  success: boolean;
+  requestId: string;
+  paymentKey?: string;
+  orderId?: string;
+  checkoutUrl?: string;
+  amount: number;
+  status: 'READY' | 'DONE';
+  requiresUserAction: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface ConfirmDepositPaymentRequest {
+  paymentKey: string;
+  orderId: string;
+  amount: number;
+}
+
+export interface ConfirmDepositPaymentResponse {
+  success: boolean;
+  depositId?: string;
+  amount?: number;
+  status?: string;
+  balanceAfter?: number;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Initiate deposit payment via Toss Payments card payment
+ * Returns checkout URL for user to complete payment
+ */
+export async function initiateDepositPayment(
+  request: InitiateDepositPaymentRequest,
+): Promise<InitiateDepositPaymentResponse> {
+  const token = getAccessToken();
+
+  if (!token) {
+    throw new Error('User not authenticated');
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/deposits/initiate-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        amount: request.amount,
+        description: request.description,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error((errorData as any)?.message || 'Failed to initiate deposit payment');
+    }
+
+    const data = await response.json();
+    return data.data;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`입금 요청 실패: ${errorMessage}`);
+  }
+}
+
+/**
+ * Confirm deposit payment after user completes Toss checkout
+ * Credits user's virtual account with the deposit amount
+ */
+export async function confirmDepositPayment(
+  request: ConfirmDepositPaymentRequest,
+): Promise<ConfirmDepositPaymentResponse> {
+  const token = getAccessToken();
+
+  if (!token) {
+    throw new Error('User not authenticated');
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/deposits/confirm-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        paymentKey: request.paymentKey,
+        orderId: request.orderId,
+        amount: request.amount,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error((errorData as any)?.message || 'Failed to confirm deposit payment');
+    }
+
+    const data = await response.json();
+    return data.data;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`입금 확인 실패: ${errorMessage}`);
+  }
+}
+
+/**
+ * Get deposit payment status
+ */
+export async function getDepositPaymentStatus(
+  orderId: string,
+): Promise<{ status: string; amount?: number; message?: string }> {
+  const token = getAccessToken();
+
+  if (!token) {
+    throw new Error('User not authenticated');
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/deposits/payment-status?orderId=${orderId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error((errorData as any)?.message || 'Failed to get payment status');
+    }
+
+    const data = await response.json();
+    return data.data;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`결제 상태 조회 실패: ${errorMessage}`);
+  }
+}

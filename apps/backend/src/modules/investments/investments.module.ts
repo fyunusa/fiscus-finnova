@@ -7,9 +7,13 @@ import { InvestmentsService } from './services/investments.service';
 import { DashboardService } from './services/dashboard.service';
 import { InvestmentsController } from './controllers/investments.controller';
 import { DashboardController } from './controllers/dashboard.controller';
+import { UsersModule } from '@modules/users/users.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Investment, UserInvestment, UserFavoriteInvestment])],
+  imports: [
+    TypeOrmModule.forFeature([Investment, UserInvestment, UserFavoriteInvestment]),
+    UsersModule,
+  ],
   providers: [InvestmentsService, DashboardService],
   controllers: [InvestmentsController, DashboardController],
   exports: [InvestmentsService, DashboardService],

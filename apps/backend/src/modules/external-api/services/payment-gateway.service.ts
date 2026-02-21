@@ -578,6 +578,61 @@ export class PaymentGatewayService {
     }
   }
 
+  // ============ CARD PAYMENT OPERATIONS (FOR DEPOSITS) ============
+
+  /**
+   * Initiate card payment for deposits
+   * Generates payment key and checkout URL for user to pay via card/bank transfer
+   *
+   * @param orderId - Unique order ID
+   * @param amount - Deposit amount in won
+   * @param email - Customer email
+   * @param description - Payment description
+   * @returns Payment initiation details
+   */
+  async initiateCardPaymentForDeposit(
+    orderId: string,
+    amount: number,
+    email: string,
+    description: string,
+  ): Promise<VirtualAccountInitiation> {
+    try {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      
+      // Redirect URLs for deposit payment
+      const successUrl = `${frontendUrl}/dashboard/deposits?payment=success&orderId=${orderId}`;
+      const failUrl = `${frontendUrl}/dashboard/deposits?payment=failed&orderId=${orderId}`;
+
+      const payload = {
+        method: 'CARD',
+        amount,
+        orderId,
+        orderName: description,
+        customerEmail: email,
+        successUrl,
+        failUrl,
+      };
+
+      this.logger.debug(`Initiating card payment for deposit:`, JSON.stringify(payload, null, 2));
+
+      const response = await this.makeRequest('POST', '/v1/payments', payload) as Record<string, unknown>;
+      const checkoutData = response.checkout as Record<string, string>;
+
+      return {
+        paymentKey: response.paymentKey as string,
+        orderId: response.orderId as string,
+        checkoutUrl: checkoutData.url,
+        amount: response.totalAmount as number,
+        status: (response.status as string) === 'DONE' ? 'DONE' : 'READY',
+        requiresUserAction: (response.status as string) !== 'DONE',
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Card payment initiation error:`, error);
+      throw new BadRequestException(`카드 결제 요청 실패: ${errorMessage}`);
+    }
+  }
+
   // ============ HELPER METHODS ============
 
   /**

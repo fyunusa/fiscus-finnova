@@ -162,8 +162,8 @@ export default function CredentialsSetupPage() {
 
       console.log('✅ Account created successfully:', result.userId);
 
-      // Redirect to next step (Step 6: Bank Account)
-      router.push('/signup/individual/bank');
+      // Redirect to success/complete page
+      router.push('/signup/individual/complete');
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : '계정 생성 중 오류가 발생했습니다';
       setError(errorMsg);

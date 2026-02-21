@@ -9,8 +9,8 @@ services:
     name: fiscus-backend
     runtime: node
     rootDir: apps/backend
-    buildCommand: npm install && npm run build && npm run migration:run
-    startCommand: npm run start:prod
+    buildCommand: npm install && npm run build
+    startCommand: npm run migration:run && npm run start:prod
     envVars:
       - key: NODE_ENV
         value: production
