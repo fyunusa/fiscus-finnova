@@ -336,7 +336,7 @@ export default function CreditCardDetailPage() {
                 {/* Action Buttons */}
                 <Button 
                   className="w-full bg-purple-600 text-white hover:bg-purple-700 py-3 font-bold"
-                  onClick={() => router.push(`/investment/${productId}/apply`)}
+                  onClick={handleInvest}
                 >
                   투자하기
                 </Button>

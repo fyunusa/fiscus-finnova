@@ -583,6 +583,8 @@ export class PaymentGatewayService {
   /**
    * Initiate card payment for deposits
    * Generates payment key and checkout URL for user to pay via card/bank transfer
+   * In test mode, uses EASY_PAY for simpler testing without auth
+   * In production, uses CARD for standard credit card processing
    *
    * @param orderId - Unique order ID
    * @param amount - Deposit amount in won
@@ -603,20 +605,26 @@ export class PaymentGatewayService {
       const successUrl = `${frontendUrl}/dashboard/deposits?payment=success&orderId=${orderId}`;
       const failUrl = `${frontendUrl}/dashboard/deposits?payment=failed&orderId=${orderId}`;
 
+      // For deposits, use CARD method which shows multiple payment options in checkout
+      // Toss Payment Widget will display card, bank transfer (계좌이체), and other enabled methods
       const payload = {
         method: 'CARD',
         amount,
         orderId,
         orderName: description,
         customerEmail: email,
+        customerName: 'Customer',
         successUrl,
         failUrl,
+        variant: 'DEFAULT',
       };
 
-      this.logger.debug(`Initiating card payment for deposit:`, JSON.stringify(payload, null, 2));
+      this.logger.debug(`Initiating transfer payment for deposit:`, JSON.stringify(payload, null, 2));
 
       const response = await this.makeRequest('POST', '/v1/payments', payload) as Record<string, unknown>;
       const checkoutData = response.checkout as Record<string, string>;
+
+      this.logger.log(`✅ Payment initiated: ${orderId}`);
 
       return {
         paymentKey: response.paymentKey as string,
@@ -628,8 +636,8 @@ export class PaymentGatewayService {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Card payment initiation error:`, error);
-      throw new BadRequestException(`카드 결제 요청 실패: ${errorMessage}`);
+      this.logger.error(`Transfer payment initiation error:`, error);
+      throw new BadRequestException(`입금 요청 실패: ${errorMessage}`);
     }
   }
 

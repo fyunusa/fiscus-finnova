@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Layout from '@/components/Layout';
 import { Card, Button, Badge } from '@/components/ui';
 import Link from 'next/link';
+import { DepositWidget } from '@/components/DepositWidget';
 import {
   Wallet,
   ArrowDownCircle,
@@ -20,6 +21,7 @@ import {
   CreditCard,
   Shield,
   Snowflake,
+  ArrowLeft,
 } from 'lucide-react';
 import * as vaService from '@/services/virtual-account.service';
 import type { VirtualAccountInfo, DepositHistoryItem } from '@/services/virtual-account.service';
@@ -38,6 +40,12 @@ export default function DepositsPage() {
   const [depositSuccess, setDepositSuccess] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showPaymentWidget, setShowPaymentWidget] = useState(false);
+  const [currentOrderId, setCurrentOrderId] = useState('');
+  const [userEmail, setUserEmail] = useState('seekermail00@gmail.com'); // TODO: Get from auth context
+  
+  // Prevent double-processing of payment callback
+  const paymentProcessedRef = useRef(false);
 
   // Quick amount buttons
   const quickAmounts = [10, 50, 100, 500, 1000];
@@ -75,60 +83,62 @@ export default function DepositsPage() {
     fetchTransactions();
   }, []);
 
-  // Handle payment callback (success/failed)
+  // Handle payment callback (success/failed) - for widget confirmation
   useEffect(() => {
     const handlePaymentCallback = async () => {
-      const searchParams = new URLSearchParams(window.location.search);
-      const paymentStatus = searchParams.get('payment');
-      const orderId = searchParams.get('orderId');
+      // Prevent double-processing in development (React StrictMode)
+      if (paymentProcessedRef.current) {
+        console.log('⏭️ Payment already processed, skipping...');
+        return;
+      }
 
-      if (!paymentStatus || !orderId) return;
+      const searchParams = new URLSearchParams(window.location.search);
+      const paymentKey = searchParams.get('paymentKey');
+      const orderId = searchParams.get('orderId');
+      const amount = searchParams.get('amount');
+
+      // Toss redirects with paymentKey, orderId, amount when successful
+      if (!paymentKey || !orderId || !amount) return;
+
+      // Mark as processing to prevent double-call
+      paymentProcessedRef.current = true;
 
       try {
-        if (paymentStatus === 'success') {
-          // Extract paymentKey from URL hash or sessionStorage
-          const paymentKey = sessionStorage.getItem(`payment_key_${orderId}`);
-          const amountStr = sessionStorage.getItem(`deposit_amount_${orderId}`);
-          const amount = amountStr ? parseInt(amountStr) : 0;
+        console.log('✅ Confirming payment:', { orderId, paymentKey, amount });
 
-          if (paymentKey && amount > 0) {
-            console.log('✅ Confirming payment:', { orderId, paymentKey, amount });
-            
-            const confirmResult = await vaService.confirmDepositPayment({
-              paymentKey,
-              orderId,
-              amount,
-            });
+        // Confirm the payment with backend
+        const confirmResult = await vaService.confirmDepositPayment({
+          paymentKey,
+          orderId,
+          amount: parseInt(amount),
+        });
 
-            if (confirmResult.success) {
-              setDepositSuccess(true);
-              setDepositAmount('');
-              setDepositDescription('');
-              setError('');
+        if (confirmResult.success) {
+          setDepositSuccess(true);
+          setDepositAmount('');
+          setDepositDescription('');
+          setError('');
+          setShowPaymentWidget(false);
 
-              // Clear stored data
-              sessionStorage.removeItem(`payment_key_${orderId}`);
-              sessionStorage.removeItem(`deposit_amount_${orderId}`);
+          // Clear stored data
+          sessionStorage.removeItem(`payment_key_${orderId}`);
+          sessionStorage.removeItem(`deposit_amount_${orderId}`);
 
-              // Refresh data
-              await fetchAccountInfo();
-              await fetchTransactions();
+          // Refresh data
+          await fetchAccountInfo();
+          await fetchTransactions();
 
-              // Clean URL
-              window.history.replaceState({}, '', '/dashboard/deposits');
-
-              setTimeout(() => setDepositSuccess(false), 4000);
-            } else {
-              throw new Error(confirmResult.error || '결제 확인 실패');
-            }
-          }
-        } else if (paymentStatus === 'failed') {
-          setError('결제가 실패했습니다. 다시 시도해주세요.');
+          // Clean URL
           window.history.replaceState({}, '', '/dashboard/deposits');
+
+          setTimeout(() => setDepositSuccess(false), 4000);
+        } else {
+          throw new Error(confirmResult.error || '결제 확인 실패');
         }
       } catch (err: any) {
         console.error('❌ Payment callback error:', err);
         setError(err.message || '결제 처리 중 오류가 발생했습니다.');
+        setShowPaymentWidget(false);
         window.history.replaceState({}, '', '/dashboard/deposits');
       }
     };
@@ -147,42 +157,37 @@ export default function DepositsPage() {
       return;
     }
 
-    try {
-      setIsDepositing(true);
-      setError('');
-      
-      // Step 1: Initiate payment with Toss
-      console.log('💳 Initiating Toss payment for deposit:', { amount });
-      
-      const paymentInitiation = await vaService.initiateDepositPayment({
-        amount,
-        description: depositDescription || '가상계좌 입금',
-      });
-
-      if (!paymentInitiation.success) {
-        throw new Error(paymentInitiation.error || 'Failed to initiate payment');
-      }
-
-      if (!paymentInitiation.checkoutUrl) {
-        throw new Error('No checkout URL received from payment service');
-      }
-
-      if (!paymentInitiation.paymentKey || !paymentInitiation.orderId) {
-        throw new Error('Payment key or order ID not received');
-      }
-
-      // Step 2: Store payment details in sessionStorage for callback handling
-      sessionStorage.setItem(`payment_key_${paymentInitiation.orderId}`, paymentInitiation.paymentKey);
-      sessionStorage.setItem(`deposit_amount_${paymentInitiation.orderId}`, amount.toString());
-      
-      // Step 3: Redirect to Toss checkout
-      console.log('✅ Payment initiated, redirecting to Toss checkout:', paymentInitiation.checkoutUrl);
-      window.location.href = paymentInitiation.checkoutUrl;
-    } catch (err: any) {
-      setError(err.message || '입금 처리 중 오류가 발생했습니다.');
-      setIsDepositing(false);
-    }
+    // Generate orderId for this deposit
+    const orderId = `deposit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    setCurrentOrderId(orderId);
+    setError('');
+    
+    // Show the payment widget
+    setShowPaymentWidget(true);
   };
+
+  const handleBackFromWidget = () => {
+    setShowPaymentWidget(false);
+    setCurrentOrderId('');
+    setDepositAmount('');
+    setDepositDescription('');
+    setError('');
+  };
+
+  const handlePaymentSuccess = useCallback(async () => {
+    setDepositSuccess(true);
+    setShowPaymentWidget(false);
+    setDepositAmount('');
+    setDepositDescription('');
+    await fetchAccountInfo();
+    await fetchTransactions();
+    setTimeout(() => setDepositSuccess(false), 4000);
+  }, []);
+
+  const handlePaymentError = useCallback((errorMsg: string) => {
+    setError(errorMsg);
+    setShowPaymentWidget(false);
+  }, []);
 
   const handleCopyAccount = () => {
     if (accountInfo?.accountNumber) {
@@ -517,132 +522,155 @@ export default function DepositsPage() {
           {activeTab === 'deposit' && (
             <Card className="bg-white/90 backdrop-blur-sm shadow-sm border-0 rounded-xl overflow-hidden">
               <div className="p-6 sm:p-8">
-                <h3 className="text-xl font-bold text-slate-900 mb-1">가상계좌 입금</h3>
-                <p className="text-sm text-slate-500 mb-8">투자를 위한 자금을 가상계좌에 충전하세요</p>
+                {!showPaymentWidget ? (
+                  <>
+                    <h3 className="text-xl font-bold text-slate-900 mb-1">가상계좌 입금</h3>
+                    <p className="text-sm text-slate-500 mb-8">투자를 위한 자금을 가상계좌에 충전하세요</p>
 
-                {/* Success Message */}
-                {depositSuccess && (
-                  <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 animate-in fade-in duration-300">
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-green-800">입금이 완료되었습니다!</p>
-                      <p className="text-sm text-green-600">잔액이 업데이트 되었습니다.</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Error Message */}
-                {error && (
-                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
-                    <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                    <p className="text-sm text-red-700">{error}</p>
-                  </div>
-                )}
-
-                {/* Amount Input */}
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    입금 금액
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={depositAmount}
-                      onChange={(e) => { setDepositAmount(e.target.value); setError(''); }}
-                      placeholder="0"
-                      className="w-full px-4 py-4 text-2xl font-bold text-slate-900 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg font-medium text-slate-400">만원</span>
-                  </div>
-                  {depositAmount && (
-                    <p className="text-sm text-slate-500 mt-2 ml-1">
-                      = {(parseInt(depositAmount) * 10000).toLocaleString()}원
-                    </p>
-                  )}
-                </div>
-
-                {/* Quick Amount Buttons */}
-                <div className="mb-6">
-                  <label className="block text-xs font-medium text-slate-500 mb-2">빠른 금액 선택</label>
-                  <div className="flex flex-wrap gap-2">
-                    {quickAmounts.map((amount) => (
-                      <button
-                        key={amount}
-                        onClick={() => { setDepositAmount(amount.toString()); setError(''); }}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-150 ${depositAmount === amount.toString()
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                            : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
-                          }`}
-                      >
-                        {amount >= 100 ? `${amount / 100}억` : `${amount}만`}원
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div className="mb-8">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    메모 <span className="text-slate-400 font-normal">(선택)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={depositDescription}
-                    onChange={(e) => setDepositDescription(e.target.value)}
-                    placeholder="예: 3월 투자 자금"
-                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-sm transition-all"
-                  />
-                </div>
-
-                {/* Summary */}
-                {depositAmount && parseInt(depositAmount) > 0 && (
-                  <div className="mb-6 p-5 bg-slate-50 rounded-xl border border-slate-200">
-                    <h4 className="text-sm font-semibold text-slate-700 mb-3">입금 요약</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">입금 금액</span>
-                        <span className="font-bold text-slate-900">{(parseInt(depositAmount) * 10000).toLocaleString()}원</span>
+                    {/* Success Message */}
+                    {depositSuccess && (
+                      <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3 animate-in fade-in duration-300">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-green-800">입금이 완료되었습니다!</p>
+                          <p className="text-sm text-green-600">잔액이 업데이트 되었습니다.</p>
+                        </div>
                       </div>
-                      {accountInfo && (
-                        <>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-500">현재 잔액</span>
-                            <span className="text-slate-700">{Number(accountInfo.availableBalance).toLocaleString()}원</span>
-                          </div>
-                          <div className="border-t border-slate-200 pt-2 flex justify-between text-sm">
-                            <span className="text-slate-500">입금 후 잔액</span>
-                            <span className="font-bold text-blue-600">
-                              {(Number(accountInfo.availableBalance) + parseInt(depositAmount) * 10000).toLocaleString()}원
-                            </span>
-                          </div>
-                        </>
+                    )}
+
+                    {/* Error Message */}
+                    {error && (
+                      <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+                        <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                        <p className="text-sm text-red-700">{error}</p>
+                      </div>
+                    )}
+
+                    {/* Amount Input */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        입금 금액
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={depositAmount}
+                          onChange={(e) => { setDepositAmount(e.target.value); setError(''); }}
+                          placeholder="0"
+                          className="w-full px-4 py-4 text-2xl font-bold text-slate-900 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-lg font-medium text-slate-400">만원</span>
+                      </div>
+                      {depositAmount && (
+                        <p className="text-sm text-slate-500 mt-2 ml-1">
+                          = {(parseInt(depositAmount) * 10000).toLocaleString()}원
+                        </p>
                       )}
                     </div>
+
+                    {/* Quick Amount Buttons */}
+                    <div className="mb-6">
+                      <label className="block text-xs font-medium text-slate-500 mb-2">빠른 금액 선택</label>
+                      <div className="flex flex-wrap gap-2">
+                        {quickAmounts.map((amount) => (
+                          <button
+                            key={amount}
+                            onClick={() => { setDepositAmount(amount.toString()); setError(''); }}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-150 ${depositAmount === amount.toString()
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                : 'bg-white text-slate-700 border-slate-200 hover:border-blue-300 hover:bg-blue-50'
+                              }`}
+                          >
+                            {amount >= 100 ? `${amount / 100}억` : `${amount}만`}원
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div className="mb-8">
+                      <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        메모 <span className="text-slate-400 font-normal">(선택)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={depositDescription}
+                        onChange={(e) => setDepositDescription(e.target.value)}
+                        placeholder="예: 3월 투자 자금"
+                        className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 text-sm transition-all"
+                      />
+                    </div>
+
+                    {/* Summary */}
+                    {depositAmount && parseInt(depositAmount) > 0 && (
+                      <div className="mb-6 p-5 bg-slate-50 rounded-xl border border-slate-200">
+                        <h4 className="text-sm font-semibold text-slate-700 mb-3">입금 요약</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">입금 금액</span>
+                            <span className="font-bold text-slate-900">{(parseInt(depositAmount) * 10000).toLocaleString()}원</span>
+                          </div>
+                          {accountInfo && (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">현재 잔액</span>
+                                <span className="text-slate-700">{Number(accountInfo.availableBalance).toLocaleString()}원</span>
+                              </div>
+                              <div className="border-t border-slate-200 pt-2 flex justify-between text-sm">
+                                <span className="text-slate-500">입금 후 잔액</span>
+                                <span className="font-bold text-blue-600">
+                                  {(Number(accountInfo.availableBalance) + parseInt(depositAmount) * 10000).toLocaleString()}원
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Submit Button */}
+                    <Button
+                      onClick={handleDeposit}
+                      disabled={!depositAmount || parseInt(depositAmount) <= 0}
+                      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-slate-300 disabled:to-slate-400 text-white py-4 rounded-xl font-semibold text-base shadow-lg shadow-blue-200 disabled:shadow-none transition-all duration-200"
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <ArrowDownCircle className="w-5 h-5" />
+                        결제 진행하기
+                      </span>
+                    </Button>
+
+                    <p className="text-xs text-slate-400 text-center mt-4">
+                      안전한 결제 게이트웨이를 통해 처리됩니다.
+                    </p>
+                  </>
+                ) : null}
+
+                {/* Payment Widget - Always rendered, visibility controlled by showPaymentWidget */}
+                {showPaymentWidget && (
+                  <div className="mb-6 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">결제 수단 선택</h3>
+                      <p className="text-sm text-slate-500 mt-1">원하는 결제 수단을 선택하세요</p>
+                    </div>
+                    <button
+                      onClick={handleBackFromWidget}
+                      className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                      title="돌아가기"
+                    >
+                      <ArrowLeft className="w-5 h-5 text-slate-600" />
+                    </button>
                   </div>
                 )}
 
-                {/* Submit Button */}
-                <Button
-                  onClick={handleDeposit}
-                  disabled={isDepositing || !depositAmount || parseInt(depositAmount) <= 0}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-slate-300 disabled:to-slate-400 text-white py-4 rounded-xl font-semibold text-base shadow-lg shadow-blue-200 disabled:shadow-none transition-all duration-200"
-                >
-                  {isDepositing ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader className="w-5 h-5 animate-spin" />
-                      입금 처리 중...
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      <ArrowDownCircle className="w-5 h-5" />
-                      입금하기
-                    </span>
-                  )}
-                </Button>
-
-                <p className="text-xs text-slate-400 text-center mt-4">
-                  입금은 즉시 처리되며 가상계좌 잔액에 반영됩니다.
-                </p>
+                <DepositWidget
+                  visible={showPaymentWidget}
+                  amount={parseInt(depositAmount) * 10000}
+                  orderId={currentOrderId}
+                  customerEmail={userEmail}
+                  onPaymentSuccess={handlePaymentSuccess}
+                  onPaymentError={handlePaymentError}
+                />
               </div>
             </Card>
           )}
