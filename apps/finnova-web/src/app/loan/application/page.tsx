@@ -10,6 +10,8 @@ import { loanService } from '@/services/loanService';
 import AddressSearch from '@/components/AddressSearch';
 import MapDisplay from '@/components/MapDisplay';
 import PropertyValuation from '@/components/PropertyValuation';
+import * as userService from '@/services/user.service';
+import * as virtualAccountService from '@/services/virtual-account.service';
 
 interface FormData {
   loanProductId: string;
@@ -52,6 +54,21 @@ const reverseCollateralTypeMap: { [key: string]: string } = {
   'land': '토지',
   'vehicle': '자동차',
   'other': '기타',
+};
+
+// Bank code to name mapping
+const BANK_CODE_MAP: { [key: string]: string } = {
+  'bk_111': '국민은행',
+  'bk_004': '우리은행',
+  'bk_020': '신한은행',
+  'bk_081': '하나은행',
+  'bk_088': '신협',
+  'bk_003': '기업은행',
+};
+
+// Helper function to get bank name from code
+const getBankName = (bankCode: string): string => {
+  return BANK_CODE_MAP[bankCode] || bankCode;
 };
 
 // Helper function to get display name from enum value
@@ -137,14 +154,35 @@ function ApplicationPageContent() {
   useEffect(() => {
     const loadAccounts = async () => {
       try {
-        // Mock accounts - in production, fetch from backend
-        setAccounts([
-          { id: 'bank-001', name: '국민은행 (주) - 123-456-7890', type: 'bank', balance: 5000000 },
-          { id: 'bank-002', name: '신한은행 (주) - 987-654-3210', type: 'bank', balance: 3500000 },
-          { id: 'virtual-001', name: '가상계좌 - 123456789', type: 'virtual', balance: 1200000 },
-        ]);
+        // Fetch actual bank accounts from API
+        const bankResponse = await userService.getBankAccounts();
+        const bankAccounts = bankResponse.data?.map((account: any) => ({
+          id: account.id,
+          name: `${getBankName(account.bankCode)} - ${account.accountNumber}`,
+          type: 'bank',
+          balance: account.balance || 0,
+        })) || [];
+
+        // Fetch virtual account info from API
+        const virtualResponse = await virtualAccountService.getVirtualAccountInfo();
+        const virtualAccounts = virtualResponse.data
+          ? [
+              {
+                id: virtualResponse.data.accountNumber,
+                name: `가상계좌 - ${virtualResponse.data.accountNumber}`,
+                type: 'virtual',
+                balance: virtualResponse.data.availableBalance || 0,
+              },
+            ]
+          : [];
+
+        // Combine both account types
+        setAccounts([...bankAccounts, ...virtualAccounts]);
+        console.log('✅ Accounts loaded:', { bankAccounts, virtualAccounts });
       } catch (err) {
         console.error('Failed to load accounts:', err);
+        // Still allow user to proceed, they'll see an empty account list
+        setAccounts([]);
       }
     };
     loadAccounts();
