@@ -148,7 +148,19 @@ export class UsersController {
     FileFieldsInterceptor([
       { name: 'idDocument', maxCount: 1 },
       { name: 'selfieDocument', maxCount: 1 },
-    ]),
+    ], {
+      limits: {
+        fileSize: 20 * 1024 * 1024, // 20MB per file
+      },
+      fileFilter: (req, file, cb) => {
+        // Allow only image files
+        if (!file.mimetype.match(/image\/(jpg|jpeg|png|gif)/)) {
+          cb(new Error('Only image files are allowed'), false);
+        } else {
+          cb(null, true);
+        }
+      },
+    }),
   )
   @ApiOperation({ summary: 'Upload KYC documents (ID and selfie)' })
   @ApiResponse({

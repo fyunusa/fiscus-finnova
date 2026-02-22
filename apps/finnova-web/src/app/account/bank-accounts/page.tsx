@@ -144,6 +144,8 @@ export default function BankAccountsPage() {
       if (response.success) {
         setSuccess('Bank account added successfully!');
         setFormData({ bankCode: '', accountNumber: '', accountHolder: '' });
+        // Update completion flag so account page reflects step 6 as complete
+        localStorage.setItem('hasVerifiedBankAccount', 'true');
         await loadData();
         
         // Clear success message after 3 seconds

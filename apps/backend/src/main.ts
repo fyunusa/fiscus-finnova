@@ -7,6 +7,11 @@ import logger from '@common/logger/logger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Configure body parser limits for file uploads
+  // Set to 20MB to support large document uploads
+  app.use(require('express').json({ limit: '20mb' }));
+  app.use(require('express').urlencoded({ limit: '20mb', extended: true }));
+
   // Enable CORS with allowed origins
   app.enableCors({
     origin: [
