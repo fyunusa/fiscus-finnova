@@ -95,6 +95,13 @@ export default function Layout({ children }: LayoutProps) {
                   {isUserMenuOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                       <Link
+                        href="/dashboard"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="block px-4 py-2 text-gray-700 hover:bg-blue-50 border-b border-gray-200 font-medium"
+                      >
+                        대시보드
+                      </Link>
+                      <Link
                         href="/account"
                         onClick={() => setIsUserMenuOpen(false)}
                         className="block px-4 py-2 text-gray-700 hover:bg-blue-50 border-b border-gray-200 font-medium"
