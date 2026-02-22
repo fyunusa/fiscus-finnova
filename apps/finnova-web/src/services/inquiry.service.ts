@@ -1,3 +1,5 @@
+import { fetchWithAuth } from '@/lib/auth';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
 export interface InquiryUser {
@@ -46,15 +48,6 @@ export interface UpdateInquiryPayload {
   status?: string;
 }
 
-function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-}
-
 export async function getInquiries(category?: string, status?: string): Promise<Inquiry[]> {
   const params = new URLSearchParams();
   if (category && category !== 'all') params.set('category', category);
@@ -76,7 +69,7 @@ export async function getMyInquiries(category?: string, status?: string): Promis
   if (status) params.set('status', status);
 
   const url = `${API_URL}/inquiries/my${params.toString() ? `?${params.toString()}` : ''}`;
-  const res = await fetch(url, { headers: getAuthHeaders() });
+  const res = await fetchWithAuth(url, { method: 'GET' });
   const data = await res.json();
 
   if (!data.success) {
@@ -96,9 +89,8 @@ export async function getInquiry(id: string): Promise<Inquiry> {
 }
 
 export async function createInquiry(payload: CreateInquiryPayload): Promise<Inquiry> {
-  const res = await fetch(`${API_URL}/inquiries`, {
+  const res = await fetchWithAuth(`${API_URL}/inquiries`, {
     method: 'POST',
-    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -110,9 +102,8 @@ export async function createInquiry(payload: CreateInquiryPayload): Promise<Inqu
 }
 
 export async function updateInquiry(id: string, payload: UpdateInquiryPayload): Promise<Inquiry> {
-  const res = await fetch(`${API_URL}/inquiries/${id}`, {
+  const res = await fetchWithAuth(`${API_URL}/inquiries/${id}`, {
     method: 'PATCH',
-    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -124,9 +115,8 @@ export async function updateInquiry(id: string, payload: UpdateInquiryPayload): 
 }
 
 export async function closeInquiry(id: string): Promise<Inquiry> {
-  const res = await fetch(`${API_URL}/inquiries/${id}/close`, {
+  const res = await fetchWithAuth(`${API_URL}/inquiries/${id}/close`, {
     method: 'PATCH',
-    headers: getAuthHeaders(),
   });
   const data = await res.json();
 
@@ -137,9 +127,8 @@ export async function closeInquiry(id: string): Promise<Inquiry> {
 }
 
 export async function addComment(inquiryId: string, content: string): Promise<InquiryComment> {
-  const res = await fetch(`${API_URL}/inquiries/${inquiryId}/comments`, {
+  const res = await fetchWithAuth(`${API_URL}/inquiries/${inquiryId}/comments`, {
     method: 'POST',
-    headers: getAuthHeaders(),
     body: JSON.stringify({ content }),
   });
   const data = await res.json();

@@ -89,8 +89,7 @@ export default function BankAccountPage() {
       // Validate account (API integration)
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mark step 6 as completed in both localStorage and sessionStorage
-      localStorage.setItem('signup_step_6_completed', 'true');
+      // Mark step 6 as completed
       sessionStorage.setItem('signup_step_6_completed', 'true');
       
       // Optionally store bank info

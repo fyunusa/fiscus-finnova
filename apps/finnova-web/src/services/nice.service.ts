@@ -4,6 +4,8 @@
  * Includes fallback demo mode when credentials are not available
  */
 
+import { fetchWithAuth } from '@/lib/auth';
+
 // Get environment variables - these are safe to access in browser with NEXT_PUBLIC prefix
 const getNiceConfig = () => {
   if (typeof window === 'undefined') {
@@ -65,11 +67,8 @@ export async function requestNiceVerification(
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
     // Call backend endpoint
-    const response = await fetch(`${apiUrl}/account-verification/initiate-nice`, {
+    const response = await fetchWithAuth(`${apiUrl}/account-verification/initiate-nice`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
         name: data.name,
         phone: data.phone,

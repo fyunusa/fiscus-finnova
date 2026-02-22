@@ -65,8 +65,7 @@ export default function KYCUploadPage() {
       // Simulate file upload
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Mark step 8 as completed in both localStorage and sessionStorage
-      localStorage.setItem('signup_step_8_completed', 'true');
+      // Mark step 8 as completed
       sessionStorage.setItem('signup_step_8_completed', 'true');
       
       // Optionally store file metadata

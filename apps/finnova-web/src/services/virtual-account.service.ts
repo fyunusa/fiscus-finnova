@@ -1,4 +1,4 @@
-import { getAccessToken } from '@/lib/auth';
+import { fetchWithAuth } from '@/lib/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -58,18 +58,8 @@ export interface VirtualAccountTransaction {
  * Get user's virtual account info
  */
 export async function getVirtualAccountInfo(): Promise<{ success: boolean; data?: VirtualAccountInfo; error?: string }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/virtual-accounts/info`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/virtual-accounts/info`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -90,13 +80,7 @@ export async function getVirtualAccountInfo(): Promise<{ success: boolean; data?
  * Returns either a checkout URL (if new account needs payment) or completed account info
  */
 export async function createVirtualAccount(): Promise<{ success: boolean; data: VirtualAccountInfo | VirtualAccountInitiation }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/virtual-accounts/create`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/virtual-accounts/create`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -116,18 +100,8 @@ export async function createVirtualAccount(): Promise<{ success: boolean; data: 
  * Called with the request ID to confirm account creation
  */
 export async function completeVirtualAccount(requestId: string): Promise<{ success: boolean; data: VirtualAccountInfo | { status: string; message: string } }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/virtual-accounts/complete/${requestId}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/virtual-accounts/complete/${requestId}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -142,18 +116,8 @@ export async function completeVirtualAccount(requestId: string): Promise<{ succe
  * Returns pending request details if one exists
  */
 export async function getPendingVirtualAccountRequest(): Promise<{ success: boolean; data: { id: string; requestId: string; status: string; message: string; pendingSince: string } | null }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/virtual-accounts/pending-request`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/virtual-accounts/pending-request`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -170,18 +134,8 @@ export async function getPendingVirtualAccountRequest(): Promise<{ success: bool
 export async function checkVirtualAccountStatus(
   requestId: string,
 ): Promise<{ success: boolean; data: VirtualAccountInfo | { status: string; message: string; pendingSince?: string; requiresUserAction: boolean } }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/virtual-accounts/status/${requestId}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/virtual-accounts/status/${requestId}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -208,18 +162,8 @@ export async function confirmVirtualAccountPayment(
         nextSteps?: string;
       };
 }> {
-  const token = getAccessToken();
-
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/virtual-accounts/confirm/${requestId}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/virtual-accounts/confirm/${requestId}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -233,18 +177,8 @@ export async function confirmVirtualAccountPayment(
  * Get transaction history (deposits and withdrawals)
  */
 export async function getTransactionHistory(): Promise<{ success: boolean; data: DepositHistory }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/virtual-accounts/transactions`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/virtual-accounts/transactions`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -258,18 +192,8 @@ export async function getTransactionHistory(): Promise<{ success: boolean; data:
  * Record a deposit
  */
 export async function recordDeposit(amount: number, description?: string): Promise<{ success: boolean; data: VirtualAccountTransaction }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/virtual-accounts/deposit`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/virtual-accounts/deposit`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
     body: JSON.stringify({
       amount,
       description,
@@ -287,18 +211,8 @@ export async function recordDeposit(amount: number, description?: string): Promi
  * Record a withdrawal
  */
 export async function recordWithdrawal(amount: number, pin: string, description?: string): Promise<{ success: boolean; data: VirtualAccountTransaction }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/virtual-accounts/withdraw`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/virtual-accounts/withdraw`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
     body: JSON.stringify({
       amount,
       pin,
@@ -356,19 +270,9 @@ export interface ConfirmDepositPaymentResponse {
 export async function initiateDepositPayment(
   request: InitiateDepositPaymentRequest,
 ): Promise<InitiateDepositPaymentResponse> {
-  const token = getAccessToken();
-
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
   try {
-    const response = await fetch(`${API_BASE_URL}/deposits/initiate-payment`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/deposits/initiate-payment`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
       body: JSON.stringify({
         amount: request.amount,
         description: request.description,
@@ -395,19 +299,9 @@ export async function initiateDepositPayment(
 export async function confirmDepositPayment(
   request: ConfirmDepositPaymentRequest,
 ): Promise<ConfirmDepositPaymentResponse> {
-  const token = getAccessToken();
-
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
   try {
-    const response = await fetch(`${API_BASE_URL}/deposits/confirm-payment`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/deposits/confirm-payment`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
       body: JSON.stringify({
         paymentKey: request.paymentKey,
         orderId: request.orderId,
@@ -434,19 +328,9 @@ export async function confirmDepositPayment(
 export async function getDepositPaymentStatus(
   orderId: string,
 ): Promise<{ status: string; amount?: number; message?: string }> {
-  const token = getAccessToken();
-
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
   try {
-    const response = await fetch(`${API_BASE_URL}/deposits/payment-status?orderId=${orderId}`, {
+    const response = await fetchWithAuth(`${API_BASE_URL}/deposits/payment-status?orderId=${orderId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
     });
 
     if (!response.ok) {

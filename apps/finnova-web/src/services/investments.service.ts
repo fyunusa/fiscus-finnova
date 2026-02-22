@@ -1,4 +1,4 @@
-import { getAccessToken } from '@/lib/auth';
+import { fetchWithAuth } from '@/lib/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -163,18 +163,8 @@ export async function getInvestmentWithInvestors(id: string): Promise<{
  * Get user's investments
  */
 export async function getUserInvestments(): Promise<UserInvestmentsResponse> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/investments/user/my-investments`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/investments/user/my-investments`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -191,18 +181,8 @@ export async function createUserInvestment(
   investmentId: string,
   amount: number,
 ): Promise<CreateInvestmentResponse> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/investments/${investmentId}/invest`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/investments/${investmentId}/invest`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
     body: JSON.stringify({ amount }),
   });
 
@@ -222,18 +202,8 @@ export async function addToFavorites(investmentId: string): Promise<{
   message: string;
   data: any;
 }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/investments/${investmentId}/favorite`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/investments/${investmentId}/favorite`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -252,18 +222,8 @@ export async function removeFromFavorites(investmentId: string): Promise<{
   message: string;
   data: any;
 }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/investments/${investmentId}/favorite`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/investments/${investmentId}/favorite`, {
     method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -282,18 +242,8 @@ export async function isFavorited(investmentId: string): Promise<{
   message: string;
   data: { isFavorited: boolean };
 }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/investments/${investmentId}/is-favorited`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/investments/${investmentId}/is-favorited`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -312,18 +262,8 @@ export async function getUserFavorites(): Promise<{
   message: string;
   data: Investment[];
 }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/investments/user/favorites`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/investments/user/favorites`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {

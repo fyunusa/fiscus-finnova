@@ -32,7 +32,6 @@ export default function OneWonVerificationPage() {
       verifiedAccountHolder: '테스트사용자',
     });
     completeStep(3);
-    localStorage.setItem('signup_step_7_completed', 'true');
     sessionStorage.setItem('signup_step_7_completed', 'true');
     router.push('/signup/individual/kyc');
   };
@@ -113,7 +112,6 @@ export default function OneWonVerificationPage() {
         completeStep(3);
         
         // Mark step 7 as completed
-        localStorage.setItem('signup_step_7_completed', 'true');
         sessionStorage.setItem('signup_step_7_completed', 'true');
         
         // Success - redirect to KYC step

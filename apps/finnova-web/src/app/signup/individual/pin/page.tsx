@@ -78,8 +78,7 @@ export default function PINSetupPage() {
       // Save PIN (API integration)
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Mark step 9 as completed in both localStorage and sessionStorage
-      localStorage.setItem('signup_step_9_completed', 'true');
+      // Mark step 9 as completed
       sessionStorage.setItem('signup_step_9_completed', 'true');
       
       // Optionally store PIN metadata

@@ -1,4 +1,4 @@
-import { getAccessToken } from '@/lib/auth';
+import { fetchWithAuth } from '@/lib/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -77,18 +77,8 @@ export interface FavoriteInvestment {
  * Get investment summary
  */
 export async function getInvestmentSummary(): Promise<{ success: boolean; data: InvestmentSummary }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/dashboard/investments/summary`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/dashboard/investments/summary`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -102,18 +92,8 @@ export async function getInvestmentSummary(): Promise<{ success: boolean; data: 
  * Get repayment status
  */
 export async function getRepaymentStatus(): Promise<{ success: boolean; data: RepaymentStatus }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/dashboard/investments/repayment-status`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/dashboard/investments/repayment-status`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -134,12 +114,6 @@ export async function getInvestmentHistory(params?: {
   page?: number;
   limit?: number;
 }): Promise<{ success: boolean; data: InvestmentHistory }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
   const query = new URLSearchParams();
   if (params?.status) query.append('status', params.status);
   if (params?.type) query.append('type', params.type);
@@ -148,12 +122,8 @@ export async function getInvestmentHistory(params?: {
   if (params?.page) query.append('page', params.page.toString());
   if (params?.limit) query.append('limit', params.limit.toString());
 
-  const response = await fetch(`${API_BASE_URL}/dashboard/investments/history?${query.toString()}`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/dashboard/investments/history?${query.toString()}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {
@@ -167,18 +137,8 @@ export async function getInvestmentHistory(params?: {
  * Get user's favorite investments
  */
 export async function getFavoriteInvestments(): Promise<{ success: boolean; data: FavoriteInvestment[] }> {
-  const token = getAccessToken();
-  
-  if (!token) {
-    throw new Error('User not authenticated');
-  }
-
-  const response = await fetch(`${API_BASE_URL}/dashboard/investments/favorites`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/dashboard/investments/favorites`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
   });
 
   if (!response.ok) {

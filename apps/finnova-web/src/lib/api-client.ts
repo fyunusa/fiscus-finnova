@@ -1,4 +1,4 @@
-import { getAccessToken } from '@/lib/auth';
+import { getAccessToken, handleTokenExpiry } from '@/lib/auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -50,6 +50,13 @@ class ApiClient {
     return errorText || 'An error occurred';
   }
 
+  private handleResponse(response: Response): void {
+    // Handle 401 Unauthorized (token expired or invalid)
+    if (response.status === 401) {
+      handleTokenExpiry();
+    }
+  }
+
   async get<T = any>(endpoint: string, isPublic = false): Promise<T> {
     const headers = isPublic ? { 'Content-Type': 'application/json' } : this.getHeaders();
     const url = endpoint.startsWith('http') ? endpoint : `${this.baseUrl}${endpoint}`;
@@ -60,6 +67,7 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      this.handleResponse(response);
       const error = await response.text();
       const errorMessage = this.extractErrorMessage(error);
       throw new Error(errorMessage);
@@ -79,6 +87,7 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      this.handleResponse(response);
       const error = await response.text();
       const errorMessage = this.extractErrorMessage(error);
       throw new Error(errorMessage);
@@ -98,6 +107,7 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      this.handleResponse(response);
       const error = await response.text();
       const errorMessage = this.extractErrorMessage(error);
       throw new Error(errorMessage);
@@ -116,6 +126,7 @@ class ApiClient {
     });
 
     if (!response.ok) {
+      this.handleResponse(response);
       const error = await response.text();
       const errorMessage = this.extractErrorMessage(error);
       throw new Error(errorMessage);

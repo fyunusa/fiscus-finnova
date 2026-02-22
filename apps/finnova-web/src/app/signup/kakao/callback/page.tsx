@@ -110,8 +110,6 @@ export default function SignupKakaoCallbackPage() {
         };
 
         sessionStorage.setItem(SIGNUP_FLOW_KEY, JSON.stringify(updatedState));
-        // Backup flags
-        localStorage.setItem('signup_step_2_completed', 'true');
         if (updatedState.data.verifiedName) {
           sessionStorage.setItem('verifiedName', updatedState.data.verifiedName);
         }

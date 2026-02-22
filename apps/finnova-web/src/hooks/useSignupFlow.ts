@@ -76,17 +76,9 @@ function loadSignupData(): SignupFlowState {
       };
     }
 
-    // If sessionStorage is empty, check localStorage for individual step completion flags
-    // This handles page refreshes where sessionStorage was cleared
-    const completedSteps: number[] = [];
-    for (let i = 1; i <= 9; i++) {
-      if (localStorage.getItem(`signup_step_${i}_completed`) === 'true') {
-        completedSteps.push(i);
-      }
-    }
-
-    const isAccountCreated = localStorage.getItem('signup_account_created') === 'true' ||
-                              localStorage.getItem('accessToken') !== null; // Also check for auth token
+    // Start fresh with new session - don't load old localStorage data
+    // This ensures previous user's signup progress doesn't interfere with new user
+    const isAccountCreated = localStorage.getItem('accessToken') !== null; // Only preserve auth token state
 
     return {
       data: {},
@@ -208,11 +200,6 @@ export function useSignupFlow() {
       return updated;
     });
 
-    // Also save to localStorage as backup for persistence across sessions
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(`signup_step_${stepNumber}_completed`, 'true');
-    }
-
     console.log(`✅ Step ${stepNumber} completed`);
   }, []);
 
@@ -228,11 +215,6 @@ export function useSignupFlow() {
       saveSignupData(updated);
       return updated;
     });
-
-    // Also save to localStorage for persistence
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('signup_account_created', 'true');
-    }
 
     console.log('🎉 Account marked as created');
   }, []);

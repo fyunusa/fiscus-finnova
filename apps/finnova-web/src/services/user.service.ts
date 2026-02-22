@@ -3,6 +3,8 @@
  * Handles Bank Accounts, KYC Documents, and Transaction PIN operations
  */
 
+import { fetchWithAuth } from '@/lib/auth';
+
 // ==================== Types ====================
 
 export interface BankAccount {
@@ -61,18 +63,13 @@ export interface ApiResponse<T> {
  * Create a new bank account for the logged-in user
  */
 export async function createBankAccount(
-  bankAccount: CreateBankAccountRequest,
-  token: string
+  bankAccount: CreateBankAccountRequest
 ): Promise<ApiResponse<BankAccount>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-    const response = await fetch(`${apiUrl}/users/bank-accounts`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/bank-accounts`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify(bankAccount),
     });
 
@@ -94,15 +91,12 @@ export async function createBankAccount(
 /**
  * Get all bank accounts for the logged-in user
  */
-export async function getBankAccounts(token: string): Promise<ApiResponse<BankAccount[]>> {
+export async function getBankAccounts(): Promise<ApiResponse<BankAccount[]>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-    const response = await fetch(`${apiUrl}/users/bank-accounts`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/bank-accounts`, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();
@@ -123,15 +117,12 @@ export async function getBankAccounts(token: string): Promise<ApiResponse<BankAc
 /**
  * Get default bank account for the logged-in user
  */
-export async function getDefaultBankAccount(token: string): Promise<ApiResponse<BankAccount>> {
+export async function getDefaultBankAccount(): Promise<ApiResponse<BankAccount>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-    const response = await fetch(`${apiUrl}/users/bank-accounts/default`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/bank-accounts/default`, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();
@@ -153,17 +144,13 @@ export async function getDefaultBankAccount(token: string): Promise<ApiResponse<
  * Set a bank account as default
  */
 export async function setDefaultBankAccount(
-  bankAccountId: string,
-  token: string
+  bankAccountId: string
 ): Promise<ApiResponse<BankAccount>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-    const response = await fetch(`${apiUrl}/users/bank-accounts/${bankAccountId}/default`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/bank-accounts/${bankAccountId}/default`, {
       method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();
@@ -184,15 +171,12 @@ export async function setDefaultBankAccount(
 /**
  * Delete a bank account
  */
-export async function deleteBankAccount(bankAccountId: string, token: string): Promise<ApiResponse<void>> {
+export async function deleteBankAccount(bankAccountId: string): Promise<ApiResponse<void>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-    const response = await fetch(`${apiUrl}/users/bank-accounts/${bankAccountId}`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/bank-accounts/${bankAccountId}`, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();
@@ -216,8 +200,7 @@ export async function deleteBankAccount(bankAccountId: string, token: string): P
  * Upload KYC documents (ID copy and selfie with ID)
  */
 export async function uploadKYCDocuments(
-  files: { idDocument?: File; selfieDocument?: File },
-  token: string
+  files: { idDocument?: File; selfieDocument?: File }
 ): Promise<ApiResponse<KYCDocument[]>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
@@ -230,11 +213,8 @@ export async function uploadKYCDocuments(
       formData.append('selfieDocument', files.selfieDocument);
     }
 
-    const response = await fetch(`${apiUrl}/users/kyc-documents`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/kyc-documents`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
       body: formData,
     });
 
@@ -256,15 +236,12 @@ export async function uploadKYCDocuments(
 /**
  * Get all KYC documents for the logged-in user
  */
-export async function getKYCDocuments(token: string): Promise<ApiResponse<KYCDocument[]>> {
+export async function getKYCDocuments(): Promise<ApiResponse<KYCDocument[]>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-    const response = await fetch(`${apiUrl}/users/kyc-documents`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/kyc-documents`, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();
@@ -286,17 +263,13 @@ export async function getKYCDocuments(token: string): Promise<ApiResponse<KYCDoc
  * Get a specific KYC document
  */
 export async function getKYCDocument(
-  documentId: string,
-  token: string
+  documentId: string
 ): Promise<ApiResponse<KYCDocument>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-    const response = await fetch(`${apiUrl}/users/kyc-documents/${documentId}`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/kyc-documents/${documentId}`, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();
@@ -318,17 +291,13 @@ export async function getKYCDocument(
  * Delete a KYC document
  */
 export async function deleteKYCDocument(
-  documentId: string,
-  token: string
+  documentId: string
 ): Promise<ApiResponse<void>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-    const response = await fetch(`${apiUrl}/users/kyc-documents/${documentId}`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/kyc-documents/${documentId}`, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();
@@ -351,16 +320,12 @@ export async function deleteKYCDocument(
 /**
  * Set transaction PIN
  */
-export async function setTransactionPIN(pin: string, token: string): Promise<ApiResponse<TransactionPIN>> {
+export async function setTransactionPIN(pin: string): Promise<ApiResponse<TransactionPIN>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-    const response = await fetch(`${apiUrl}/users/transaction-pin`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/transaction-pin`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify({ pin }),
     });
 
@@ -382,15 +347,12 @@ export async function setTransactionPIN(pin: string, token: string): Promise<Api
 /**
  * Get transaction PIN status
  */
-export async function getTransactionPINStatus(token: string): Promise<ApiResponse<TransactionPIN>> {
+export async function getTransactionPINStatus(): Promise<ApiResponse<TransactionPIN>> {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-    const response = await fetch(`${apiUrl}/users/transaction-pin`, {
+    const response = await fetchWithAuth(`${apiUrl}/users/transaction-pin`, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     });
 
     const data = await response.json();
