@@ -143,17 +143,18 @@ export async function fetchWithAuth(
   const token = getAccessToken();
   
   // Prepare headers with auth token
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...(typeof options.headers === 'object' && options.headers !== null 
-      ? Object.fromEntries(
-          Object.entries(options.headers).map(([key, value]) => [
-            key,
-            typeof value === 'string' ? value : String(value),
-          ])
-        )
-      : {}),
-  };
+  // Don't set Content-Type if body is FormData - let browser set it with boundary
+  const isFormData = options.body instanceof FormData;
+  const headers: Record<string, string> = isFormData
+    ? {} // FormData will set its own Content-Type with boundary
+    : { 'Content-Type': 'application/json' };
+  
+  // Merge with provided headers
+  if (typeof options.headers === 'object' && options.headers !== null) {
+    Object.entries(options.headers).forEach(([key, value]) => {
+      headers[key] = typeof value === 'string' ? value : String(value);
+    });
+  }
   
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
