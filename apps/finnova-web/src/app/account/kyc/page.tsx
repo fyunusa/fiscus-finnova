@@ -40,7 +40,7 @@ export default function KYCPage() {
 
   const loadKYCDocuments = async (token: string) => {
     try {
-      const response = await userService.getKYCDocuments(token);
+      const response = await userService.getKYCDocuments();
       setDocuments(response.data || []);
       setErrorMessage('');
     } catch (error: any) {
@@ -64,7 +64,7 @@ export default function KYCPage() {
         return;
       }
 
-      await userService.deleteKYCDocument(documentId, token);
+      await userService.deleteKYCDocument(documentId);
       setSuccessMessage('문서가 삭제되었습니다');
       
       // Reload documents
@@ -97,7 +97,7 @@ export default function KYCPage() {
       if (files.length > 0) uploadData.idDocument = files[0];
       if (files.length > 1) uploadData.selfieDocument = files[1];
 
-      await userService.uploadKYCDocuments(uploadData, token);
+      await userService.uploadKYCDocuments(uploadData);
       setSuccessMessage('KYC 문서가 업로드되었습니다');
       
       // Reset file input

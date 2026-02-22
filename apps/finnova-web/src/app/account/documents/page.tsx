@@ -52,7 +52,7 @@ export default function AccountDocumentsPage() {
         return;
       }
 
-      const response = await getKYCDocuments(token);
+      const response = await getKYCDocuments();
       setDocuments(response.data || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load KYC documents';
@@ -102,7 +102,7 @@ export default function AccountDocumentsPage() {
         return;
       }
 
-      const response = await uploadKYCDocuments(selectedFiles, token);
+      const response = await uploadKYCDocuments(selectedFiles);
 
       if (response.success) {
         setSuccess('KYC documents uploaded successfully!');

@@ -84,7 +84,6 @@ export async function createVirtualAccount(): Promise<{ success: boolean; data: 
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
     },
   });
 

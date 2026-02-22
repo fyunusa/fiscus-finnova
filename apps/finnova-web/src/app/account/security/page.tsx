@@ -39,7 +39,7 @@ export default function SecurityPage() {
         return;
       }
 
-      const response = await getTransactionPINStatus(token);
+      const response = await getTransactionPINStatus();
       setPinStatus(response.data || null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load PIN status';
@@ -93,7 +93,7 @@ export default function SecurityPage() {
         return;
       }
 
-      const response = await setTransactionPIN(pinForm.pin, token);
+      const response = await setTransactionPIN(pinForm.pin);
 
       if (response.success) {
         setSuccess('Transaction PIN set successfully!');

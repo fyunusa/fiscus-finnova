@@ -143,9 +143,16 @@ export async function fetchWithAuth(
   const token = getAccessToken();
   
   // Prepare headers with auth token
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
+    ...(typeof options.headers === 'object' && options.headers !== null 
+      ? Object.fromEntries(
+          Object.entries(options.headers).map(([key, value]) => [
+            key,
+            typeof value === 'string' ? value : String(value),
+          ])
+        )
+      : {}),
   };
   
   if (token) {

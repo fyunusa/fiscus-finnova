@@ -83,7 +83,7 @@ function loadSignupData(): SignupFlowState {
     return {
       data: {},
       currentStep: 1,
-      completedSteps,
+      completedSteps: [],
       isAccountCreated,
     };
   } catch (error) {

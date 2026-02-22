@@ -95,7 +95,7 @@ export default function AccountPage() {
 
   const loadBankAccounts = async (token: string) => {
     try {
-      const response = await userService.getBankAccounts(token);
+      const response = await userService.getBankAccounts();
       setBankAccounts(response.data || []);
       setApiError('');
     } catch (error: any) {
@@ -107,7 +107,7 @@ export default function AccountPage() {
 
   const loadKYCDocuments = async (token: string) => {
     try {
-      const response = await userService.getKYCDocuments(token);
+      const response = await userService.getKYCDocuments();
       setKycDocuments(response.data || []);
       setApiError('');
     } catch (error: any) {
@@ -184,7 +184,7 @@ export default function AccountPage() {
         return;
       }
 
-      await userService.setTransactionPIN(pinSetupForm.pin, token);
+      await userService.setTransactionPIN(pinSetupForm.pin);
       setSuccessMessage('PIN이 설정되었습니다');
       setPinSetupForm({ pin: '', confirm: '' });
       setShowPinSetupModal(false);
@@ -341,7 +341,7 @@ export default function AccountPage() {
         return;
       }
       
-      await userService.deleteBankAccount(accountId, token);
+      await userService.deleteBankAccount(accountId);
       setSuccessMessage('계좌가 삭제되었습니다');
       loadBankAccounts(token);
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -373,7 +373,7 @@ export default function AccountPage() {
       if (files.length > 0) uploadData.idDocument = files[0];
       if (files.length > 1) uploadData.selfieDocument = files[1];
 
-      await userService.uploadKYCDocuments(uploadData, token);
+      await userService.uploadKYCDocuments(uploadData);
       setSuccessMessage('KYC 문서가 업로드되었습니다');
       loadKYCDocuments(token);
       setTimeout(() => setSuccessMessage(''), 3000);

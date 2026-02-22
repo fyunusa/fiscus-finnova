@@ -76,7 +76,7 @@ export default function BankAccountsPage() {
       }
 
       const [accountsResponse, vaResponse, pendingRequestResponse] = await Promise.all([
-        getBankAccounts(token),
+        getBankAccounts(),
         getVirtualAccountInfo(),
         getPendingVirtualAccountRequest(),
       ]);
@@ -139,7 +139,7 @@ export default function BankAccountsPage() {
         return;
       }
 
-      const response = await createBankAccount(formData, token);
+      const response = await createBankAccount(formData);
       
       if (response.success) {
         setSuccess('Bank account added successfully!');
@@ -168,7 +168,7 @@ export default function BankAccountsPage() {
         return;
       }
 
-      await setDefaultBankAccount(accountId, token);
+      await setDefaultBankAccount(accountId);
       setSuccess('Default account updated!');
       await loadData();
       setTimeout(() => setSuccess(''), 3000);
@@ -190,7 +190,7 @@ export default function BankAccountsPage() {
         return;
       }
 
-      await deleteBankAccount(accountId, token);
+      await deleteBankAccount(accountId);
       setSuccess('Account deleted successfully!');
       await loadData();
       setTimeout(() => setSuccess(''), 3000);
